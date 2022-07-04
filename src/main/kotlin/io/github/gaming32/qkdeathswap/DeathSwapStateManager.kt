@@ -3,6 +3,7 @@ package io.github.gaming32.qkdeathswap
 import net.minecraft.command.CommandException
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
@@ -25,7 +26,7 @@ object DeathSwapStateManager {
     var timeSinceLastSwap = 0
     var timeToSwap = 0
 
-    val livingPlayers = mutableSetOf<PlayerEntity>()
+    val livingPlayers = mutableSetOf<ServerPlayerEntity>()
 
     fun hasBegun(): Boolean {
         return state == GameState.STARTED
@@ -65,13 +66,7 @@ object DeathSwapStateManager {
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
             player.changeGameMode(GameMode.SURVIVAL)
-            player.teleport(
-                destWorld,
-                destWorld.spawnPos.x.toDouble(),
-                destWorld.spawnPos.y.toDouble(),
-                destWorld.spawnPos.z.toDouble(),
-                destWorld.spawnAngle, 0f
-            )
+            player.teleport(destWorld.spawnLocation.copy(pitch = 0f))
         }
     }
 
@@ -79,6 +74,13 @@ object DeathSwapStateManager {
         timeSinceLastSwap++
         if (timeSinceLastSwap > timeToSwap) {
             server.broadcast("Swapping!")
+
+            val shuffledPlayers = livingPlayers.shuffled()
+            val firstPlayerLocation = shuffledPlayers[0].location
+            for (i in 1 until shuffledPlayers.size) {
+                shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
+            }
+            shuffledPlayers.last().teleport(firstPlayerLocation)
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(MIN_SWAP_TIME..MAX_SWAP_TIME)
