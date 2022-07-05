@@ -3,13 +3,19 @@ package io.github.gaming32.qkdeathswap
 import net.minecraft.command.CommandException
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.LightningEntity
+import net.minecraft.entity.effect.StatusEffectInstance
+import net.minecraft.entity.effect.StatusEffects
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
+import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.random.nextInt
 
@@ -21,8 +27,13 @@ object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
     private set
 
+    // TODO: make these options configurable
     const val MIN_SWAP_TIME = 20 * 60
     const val MAX_SWAP_TIME = 20 * 180
+    const val MIN_SPREAD_DISTANCE = 10_000
+    const val MAX_SPREAD_DISTANCE = 20_000
+    val DIMENSION: RegistryKey<World> = World.OVERWORLD
+    const val RESISTANCE_TIME = 20 * 30
 
     var timeSinceLastSwap = 0
     var timeToSwap = 0
@@ -40,9 +51,14 @@ object DeathSwapStateManager {
 
         state = GameState.STARTED
         livingPlayers.clear()
+        var playerAngle = Random.nextDouble(0.0, 360.0)
+        val playerAngleChange = 360.0 / server.allPlayers.size
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
-            resetPlayer(player)
+            resetPlayer(player, includeInventory = true)
+            player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, RESISTANCE_TIME, 255))
+            spreadPlayer(server.getWorld(DIMENSION) ?: server.getWorld(World.OVERWORLD)!!, player, playerAngle)
+            playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
             world.setWeather(6000, 0, false, false)
@@ -82,20 +98,40 @@ object DeathSwapStateManager {
         }
     }
 
-    fun resetPlayer(player: ServerPlayerEntity, gamemode: GameMode = GameMode.SURVIVAL) {
+    fun resetPlayer(
+        player: ServerPlayerEntity,
+        gamemode: GameMode = GameMode.SURVIVAL,
+        includeInventory: Boolean = false
+    ) {
         player.changeGameMode(gamemode)
         player.health = player.maxHealth
-        player.setExperienceLevel(0)
-        player.setExperiencePoints(0)
         with(player.hungerManager) {
             foodLevel = 20
             saturationLevel = 5f
             exhaustion = 0f
         }
-        player.inventory.clear()
-        player.enderChestInventory.clear()
+        if (includeInventory) {
+            player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
+            player.setExperienceLevel(0)
+            player.setExperiencePoints(0)
+            player.inventory.clear()
+            player.enderChestInventory.clear()
+        }
         player.setSpawnPoint(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored
         player.clearStatusEffects()
+    }
+
+    fun spreadPlayer(world: ServerWorld, player: ServerPlayerEntity, angle: Double) {
+        val distance = Random.nextDouble(MIN_SPREAD_DISTANCE.toDouble(), MAX_SPREAD_DISTANCE.toDouble())
+        val x = (distance * cos(angle)).toInt()
+        val z = (distance * sin(angle)).toInt()
+        player.teleport(
+            world,
+            x.toDouble(),
+            (world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf) + 1).toDouble(),
+            z.toDouble(),
+            0f, 0f
+        )
     }
 
     fun tick(server: MinecraftServer) {

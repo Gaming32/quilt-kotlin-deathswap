@@ -1,8 +1,11 @@
 package io.github.gaming32.qkdeathswap
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
+import net.minecraft.network.MessageType
+import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
 import net.minecraft.text.Text
 import net.minecraft.world.GameMode
+import net.minecraft.world.GameRules
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.literal
@@ -61,6 +64,18 @@ object DeathSwapMod : ModInitializer {
         ServerPlayerEvents.ALLOW_DEATH.register { player, source, amount ->
             if (!DeathSwapStateManager.hasBegun()) {
                 return@register true
+            }
+            // Copy-paste (and cleanup/Kotlin conversion) from ServerPlayerEntity#onDeath
+            if (player.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)) {
+                val text = player.damageTracker.deathMessage
+                val abstractTeam = player.scoreboardTeam
+                if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
+                    player.server.playerManager.broadcastSystemMessage(text, MessageType.SYSTEM)
+                } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
+                    player.server.playerManager.sendSystemMessageToTeam(player, text)
+                } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
+                    player.server.playerManager.sendSystemMessageToOtherTeams(player, text)
+                }
             }
             DeathSwapStateManager.removePlayer(player)
             false
