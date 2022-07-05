@@ -5,17 +5,17 @@
 		"id": "qkdeathswap",
 		"version": "${version}",
 		"metadata": {
-			"name": "Quilt Kotlin Deathswap",
-			"description": "A short description of your mod.",
+			"name": "Quilt Deathswap",
+			"description": "Deathswap mod for Quilt",
 			"contributors": {
-				"Me!": "Owner"
+				"Gaming32": "Owner",
+				"wagyourtail": "Collaborator"
 			},
 			"contact": {
-				"homepage": "https://example.com/",
-				"issues": "https://github.com/QuiltMC/quilt-template-mod/issues",
-				"sources": "https://github.com/QuiltMC/quilt-template-mod"
+				"homepage": "https://github.com/Gaming32/quilt-kotlin-deathswap",
+				"issues": "https://github.com/Gaming32/quilt-kotlin-deathswap/issues",
+				"sources": "https://github.com/Gaming32/quilt-kotlin-deathswap"
 			},
-			"icon": "assets/example_mod/icon.png",
 			"license": "MIT"
 		},
 		"intermediate_mappings": "net.fabricmc:intermediary",
@@ -37,6 +37,10 @@
 			{
 				"id": "minecraft",
 				"versions": ">=1.19"
+			},
+			{
+				"id": "qkl",
+				"versions": ">=0.1.0-"
 			}
 		]
 	},
