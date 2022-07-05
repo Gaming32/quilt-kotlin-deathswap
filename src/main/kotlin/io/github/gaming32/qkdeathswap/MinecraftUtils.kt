@@ -32,3 +32,9 @@ fun ServerPlayerEntity.teleport(location: Location) {
 
 val PlayerEntity.location: Location
     get() = Location(world, x, y, z, yaw, pitch)
+
+fun ticksToMinutesSeconds(ticks: Int): String {
+    val minutes = ticks / 1200
+    val seconds = ticks / 20 - minutes * 60
+    return "${minutes}:${seconds.toString().padStart(2, '0')}"
+}

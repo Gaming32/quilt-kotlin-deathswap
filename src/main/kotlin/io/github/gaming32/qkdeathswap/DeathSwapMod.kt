@@ -1,20 +1,23 @@
 package io.github.gaming32.qkdeathswap
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
-import net.minecraft.entity.EntityType
-import net.minecraft.entity.LightningEntity
+import net.minecraft.text.Text
 import net.minecraft.world.GameMode
 import org.quiltmc.loader.api.ModContainer
+import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.literal
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.register
 import org.quiltmc.qkl.wrapper.qsl.EventRegistration
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
+import org.quiltmc.qkl.wrapper.qsl.networking.onPlayDisconnect
+import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 object DeathSwapMod : ModInitializer {
-    @JvmField val LOGGER = LoggerFactory.getLogger("qkdeathswap")
+    @JvmField val LOGGER: Logger = LoggerFactory.getLogger("qkdeathswap")
 
     override fun onInitialize(mod: ModContainer) {
         EventRegistration.onCommandRegistration { buildContext, environment ->
@@ -34,6 +37,24 @@ object DeathSwapMod : ModInitializer {
                         1
                     }
                 }
+                if (QuiltLoader.isDevelopmentEnvironment()) {
+                    literal("debug") {
+                        literal("swap_now") {
+                            executes { ctx ->
+                                DeathSwapStateManager.timeToSwap = DeathSwapStateManager.timeSinceLastSwap
+                                1
+                            }
+                        }
+                        literal("swap_at") {
+                            executes { ctx ->
+                                ctx.source.sendFeedback(Text.literal(
+                                    "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
+                                ), true)
+                                1
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -41,9 +62,6 @@ object DeathSwapMod : ModInitializer {
             if (!DeathSwapStateManager.hasBegun()) {
                 return@register true
             }
-            player.world.spawnEntity(LightningEntity(EntityType.LIGHTNING_BOLT, player.world).also { it.setCosmetic(true) })
-            player.health = 20f
-            player.changeGameMode(GameMode.SPECTATOR)
             DeathSwapStateManager.removePlayer(player)
             false
         }
@@ -51,6 +69,18 @@ object DeathSwapMod : ModInitializer {
         EventRegistration.onServerTickEnd {
             if (DeathSwapStateManager.hasBegun()) {
                 DeathSwapStateManager.tick(this)
+            }
+        }
+
+        EventRegistration.onPlayReady { packetSender, server ->
+            if (DeathSwapStateManager.hasBegun()) {
+                DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
+            }
+        }
+
+        EventRegistration.onPlayDisconnect {
+            if (DeathSwapStateManager.hasBegun()) {
+                DeathSwapStateManager.removePlayer(player, strikeLightning = false)
             }
         }
 

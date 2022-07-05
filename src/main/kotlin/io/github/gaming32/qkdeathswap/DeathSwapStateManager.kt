@@ -1,7 +1,8 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.command.CommandException
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.entity.EntityType
+import net.minecraft.entity.LightningEntity
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
@@ -51,7 +52,15 @@ object DeathSwapStateManager {
         timeToSwap = Random.nextInt(MIN_SWAP_TIME..MAX_SWAP_TIME)
     }
 
-    fun removePlayer(player: PlayerEntity) {
+    fun removePlayer(player: ServerPlayerEntity, strikeLightning: Boolean = true) {
+        if (strikeLightning) {
+            player.world.spawnEntity(
+                LightningEntity(
+                    EntityType.LIGHTNING_BOLT,
+                    player.world
+                ).apply { setCosmetic(true) })
+        }
+        resetPlayer(player, gamemode = GameMode.SPECTATOR)
         livingPlayers.remove(player)
         if (livingPlayers.size < 2) {
             player.server?.broadcast(
@@ -73,8 +82,8 @@ object DeathSwapStateManager {
         }
     }
 
-    private fun resetPlayer(player: ServerPlayerEntity) {
-        player.changeGameMode(GameMode.SURVIVAL)
+    fun resetPlayer(player: ServerPlayerEntity, gamemode: GameMode = GameMode.SURVIVAL) {
+        player.changeGameMode(gamemode)
         player.health = player.maxHealth
         player.setExperienceLevel(0)
         player.setExperiencePoints(0)
@@ -105,12 +114,10 @@ object DeathSwapStateManager {
             timeToSwap = Random.nextInt(MIN_SWAP_TIME..MAX_SWAP_TIME)
         }
         if (timeSinceLastSwap % 20 == 0) {
-            val minutes = timeSinceLastSwap / 1200
-            val seconds = timeSinceLastSwap / 20 - minutes * 60
             server.allPlayers.forEach { player ->
                 player.sendMessage(
                     Text.literal(
-                        "Time since last swap: ${minutes}:${seconds.toString().padStart(2, '0')}"
+                        "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
                     ).formatted(
                         if (timeSinceLastSwap >= MIN_SWAP_TIME) Formatting.RED else Formatting.GREEN
                     ),
