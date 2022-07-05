@@ -19,6 +19,7 @@ object DeathSwapMod : ModInitializer {
     override fun onInitialize(mod: ModContainer) {
         EventRegistration.onCommandRegistration { buildContext, environment ->
             register("deathswap") {
+                requires { it.hasPermissionLevel(1) }
                 literal("start") {
                     executes { ctx ->
                         DeathSwapStateManager.begin(ctx.source.server)

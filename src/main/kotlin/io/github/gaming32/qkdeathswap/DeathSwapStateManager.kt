@@ -41,7 +41,7 @@ object DeathSwapStateManager {
         livingPlayers.clear()
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
-            player.changeGameMode(GameMode.SURVIVAL)
+            resetPlayer(player)
         }
         server.worlds.forEach { world ->
             world.setWeather(6000, 0, false, false)
@@ -54,8 +54,12 @@ object DeathSwapStateManager {
     fun removePlayer(player: PlayerEntity) {
         livingPlayers.remove(player)
         if (livingPlayers.size < 2) {
+            player.server?.broadcast(
+                Text.literal("Game over! ")
+                    .append(livingPlayers.firstOrNull()?.displayName ?: Text.literal("Nobody"))
+                    .append(" won")
+            )
             endGame(player.server!!)
-            player.server?.broadcast("Game over!")
         }
     }
 
@@ -64,10 +68,25 @@ object DeathSwapStateManager {
         livingPlayers.clear()
         val destWorld = server.getWorld(World.OVERWORLD)!!
         server.allPlayers.forEach { player ->
-            livingPlayers.add(player)
-            player.changeGameMode(GameMode.SURVIVAL)
             player.teleport(destWorld.spawnLocation.copy(pitch = 0f))
+            resetPlayer(player)
         }
+    }
+
+    private fun resetPlayer(player: ServerPlayerEntity) {
+        player.changeGameMode(GameMode.SURVIVAL)
+        player.health = player.maxHealth
+        player.setExperienceLevel(0)
+        player.setExperiencePoints(0)
+        with(player.hungerManager) {
+            foodLevel = 20
+            saturationLevel = 5f
+            exhaustion = 0f
+        }
+        player.inventory.clear()
+        player.enderChestInventory.clear()
+        player.setSpawnPoint(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored
+        player.clearStatusEffects()
     }
 
     fun tick(server: MinecraftServer) {
