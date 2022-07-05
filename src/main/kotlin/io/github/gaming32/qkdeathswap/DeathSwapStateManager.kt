@@ -10,7 +10,6 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
-import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
@@ -26,14 +25,6 @@ enum class GameState {
 object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
     private set
-
-    // TODO: make these options configurable
-    const val MIN_SWAP_TIME = 20 * 60
-    const val MAX_SWAP_TIME = 20 * 180
-    const val MIN_SPREAD_DISTANCE = 10_000
-    const val MAX_SPREAD_DISTANCE = 20_000
-    val DIMENSION: RegistryKey<World> = World.OVERWORLD
-    const val RESISTANCE_TIME = 20 * 30
 
     var timeSinceLastSwap = 0
     var timeToSwap = 0
@@ -56,8 +47,8 @@ object DeathSwapStateManager {
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
             resetPlayer(player, includeInventory = true)
-            player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, RESISTANCE_TIME, 255))
-            spreadPlayer(server.getWorld(DIMENSION) ?: server.getWorld(World.OVERWORLD)!!, player, playerAngle)
+            player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, DeathSwapConfig.resistanceTime, 255, true, false, true))
+            spreadPlayer(server.getWorld(DeathSwapConfig.dimension) ?: server.getWorld(World.OVERWORLD)!!, player, playerAngle)
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
@@ -65,7 +56,7 @@ object DeathSwapStateManager {
             world.timeOfDay = 0
         }
         timeSinceLastSwap = 0
-        timeToSwap = Random.nextInt(MIN_SWAP_TIME..MAX_SWAP_TIME)
+        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
     fun removePlayer(player: ServerPlayerEntity, strikeLightning: Boolean = true) {
@@ -122,7 +113,7 @@ object DeathSwapStateManager {
     }
 
     fun spreadPlayer(world: ServerWorld, player: ServerPlayerEntity, angle: Double) {
-        val distance = Random.nextDouble(MIN_SPREAD_DISTANCE.toDouble(), MAX_SPREAD_DISTANCE.toDouble())
+        val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
         val x = (distance * cos(angle)).toInt()
         val z = (distance * sin(angle)).toInt()
         player.teleport(
@@ -147,7 +138,7 @@ object DeathSwapStateManager {
             shuffledPlayers.last().teleport(firstPlayerLocation)
 
             timeSinceLastSwap = 0
-            timeToSwap = Random.nextInt(MIN_SWAP_TIME..MAX_SWAP_TIME)
+            timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
         }
         if (timeSinceLastSwap % 20 == 0) {
             server.allPlayers.forEach { player ->
@@ -155,7 +146,7 @@ object DeathSwapStateManager {
                     Text.literal(
                         "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
                     ).formatted(
-                        if (timeSinceLastSwap >= MIN_SWAP_TIME) Formatting.RED else Formatting.GREEN
+                        if (timeSinceLastSwap >= DeathSwapConfig.maxSwapTime) Formatting.RED else Formatting.GREEN
                     ),
                     true
                 )

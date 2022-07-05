@@ -1,11 +1,13 @@
 package io.github.gaming32.qkdeathswap
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
+import net.minecraft.command.CommandException
 import net.minecraft.network.MessageType
 import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
 import net.minecraft.text.Text
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
+import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.literal
@@ -13,6 +15,7 @@ import org.quiltmc.qkl.wrapper.minecraft.brigadier.register
 import org.quiltmc.qkl.wrapper.qsl.EventRegistration
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
+import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import org.quiltmc.qkl.wrapper.qsl.networking.onPlayDisconnect
 import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
@@ -28,6 +31,9 @@ object DeathSwapMod : ModInitializer {
                 requires { it.hasPermissionLevel(1) }
                 literal("start") {
                     executes { ctx ->
+                        if (!QuiltLoader.isDevelopmentEnvironment() && ctx.source.server.allPlayers.size < 2) {
+                            throw CommandException(Text.literal("Cannot start a DeathSwap with less than 2 players."))
+                        }
                         DeathSwapStateManager.begin(ctx.source.server)
                         ctx.source.server.broadcast("Deathswap started!")
                         1
@@ -37,6 +43,35 @@ object DeathSwapMod : ModInitializer {
                     executes { ctx ->
                         DeathSwapStateManager.endGame(ctx.source.server)
                         ctx.source.server.broadcast("Deathswap ended!")
+                        1
+                    }
+                }
+                literal("config") {
+                    DeathSwapConfig.CONFIG.values().forEach { option ->
+                        literal(option.key().toString()) {
+                            executes { ctx ->
+                                ctx.source.sendFeedback(Text.literal("${option.key()} -> ${option.value()}"), false)
+                                1
+                            }
+                            val valueType = DeathSwapConfig.CONFIG_TYPES[option.key()]!!
+                            argument("value", valueType.first) {
+                                @Suppress("UNCHECKED_CAST")
+                                executes { ctx ->
+                                    val newValue = (valueType.second as (Any) -> Any)(ctx.getArgument("value", Any::class.java))
+                                    (option as TrackedValue<Any>).setValue(newValue, true)
+                                    ctx.source.sendFeedback(Text.literal("Successfully set ${option.key()} to $newValue"), true)
+                                    1
+                                }
+                            }
+                        }
+                    }
+                    executes { ctx ->
+                        val result = Text.literal("Here are all the current config values:")
+                        DeathSwapConfig.CONFIG.values().forEach { option ->
+                            val name = option.key().toString()
+                            result.append("\n$name -> ${DeathSwapConfig.CONFIG.getValue(option.key()).value()}")
+                        }
+                        ctx.source.sendFeedback(result, false)
                         1
                     }
                 }
