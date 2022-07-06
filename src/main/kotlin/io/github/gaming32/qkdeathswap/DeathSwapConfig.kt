@@ -1,5 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
+import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.util.Identifier
@@ -15,9 +16,14 @@ object DeathSwapConfig {
     private val MAX_SWAP_TIME = TrackedValue.create(20 * 180, "max")!!
     private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
+    private val RIDE_OPPONENT_ENTITY_ON_TELEPORT = TrackedValue.create(true, "ride_opponent_entity_on_teleport") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "The entity that the opponent is riding will stay ridden by the player on swap"
+        ) }
+    }!!
     private val DIMENSION = TrackedValue.create(World.OVERWORLD.value.toString(), "dimension") { option ->
         option.constraint(IdentifierConstraint)
-        option.metadata(Comment.TYPE) { comments -> comments.add("" +
+        option.metadata(Comment.TYPE) { comments -> comments.add(
             "The dimension in which deathswaps will take place, as a dimension identifier"
         ) }
     }!!
@@ -44,6 +50,7 @@ object DeathSwapConfig {
             section.field(MIN_SPREAD_DISTANCE)
             section.field(MAX_SPREAD_DISTANCE)
         }
+        field(RIDE_OPPONENT_ENTITY_ON_TELEPORT)
         field(DIMENSION)
         field(RESISTANCE_TIME)
     })!!
@@ -54,6 +61,7 @@ object DeathSwapConfig {
         MAX_SWAP_TIME.key() to baseTimeType,
         MIN_SPREAD_DISTANCE.key() to baseTimeType,
         MAX_SPREAD_DISTANCE.key() to baseTimeType,
+        RIDE_OPPONENT_ENTITY_ON_TELEPORT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
         RESISTANCE_TIME.key() to baseTimeType
     )
@@ -87,6 +95,12 @@ object DeathSwapConfig {
 
     val spreadDistance: IntRange
         get() = minSpreadDistance..maxSpreadDistance
+
+    var rideOpponentEntityOnTeleport: Boolean
+        get() = RIDE_OPPONENT_ENTITY_ON_TELEPORT.value()
+        set(value) {
+            RIDE_OPPONENT_ENTITY_ON_TELEPORT.setValue(value, true)
+        }
 
     var dimension: RegistryKey<World>
         get() = RegistryKey.of(Registry.WORLD_KEY, Identifier(DIMENSION.value()))

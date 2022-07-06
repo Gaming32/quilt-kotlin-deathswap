@@ -27,6 +27,10 @@ val World.spawnLocation: Location
     get() = Location(this, spawnPos.x.toDouble(), spawnPos.y.toDouble(), spawnPos.z.toDouble(), spawnAngle)
 
 fun ServerPlayerEntity.teleport(location: Location) {
+    if (isSleeping) {
+        wakeUp(true, true)
+    }
+    stopRiding()
     teleport(
         (location.world ?: world) as ServerWorld,
         location.x,

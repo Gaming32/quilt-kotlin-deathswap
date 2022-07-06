@@ -133,8 +133,18 @@ object DeathSwapStateManager {
 
             val shuffledPlayers = livingPlayers.shuffled()
             val firstPlayerLocation = shuffledPlayers[0].location
+            val firstPlayerVehicle = shuffledPlayers[0].vehicle
+            var nextPlayerVehicle = shuffledPlayers[1].vehicle
             for (i in 1 until shuffledPlayers.size) {
                 shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
+                if (DeathSwapConfig.rideOpponentEntityOnTeleport) {
+                    nextPlayerVehicle = shuffledPlayers[i].vehicle
+                    nextPlayerVehicle?.stopRiding()
+                    if (nextPlayerVehicle != null) {
+                        shuffledPlayers[i - 1].startRiding(nextPlayerVehicle, true)
+                    }
+                }
+
                 shuffledPlayers[i - 1].sendMessage(
                     Text.literal("You were teleported to ")
                         .append(shuffledPlayers[i].displayName.copy().formatted(Formatting.GREEN)),
@@ -142,6 +152,10 @@ object DeathSwapStateManager {
                 )
             }
             shuffledPlayers.last().teleport(firstPlayerLocation)
+            if (DeathSwapConfig.rideOpponentEntityOnTeleport && firstPlayerVehicle != null) {
+                shuffledPlayers.last().startRiding(firstPlayerVehicle, true)
+            }
+
             shuffledPlayers.last().sendMessage(
                 Text.literal("You were teleported to ")
                     .append(shuffledPlayers[0].displayName.copy().formatted(Formatting.GREEN)),
