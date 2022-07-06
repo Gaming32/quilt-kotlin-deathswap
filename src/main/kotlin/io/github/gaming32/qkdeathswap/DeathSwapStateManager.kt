@@ -177,6 +177,11 @@ object DeathSwapStateManager {
                         .append(shuffledPlayers[i].displayName.copy().formatted(Formatting.GREEN)),
                     false
                 )
+                shuffledPlayers[i].sendMessage(
+                    shuffledPlayers[i - 1].displayName.copy().formatted(Formatting.GREEN)
+                        .append(Text.literal(" teleported to you").formatted(Formatting.RESET)),
+                    false
+                )
             }
             shuffledPlayers.last().teleport(firstPlayerLocation)
             if (DeathSwapConfig.rideOpponentEntityOnTeleport && firstPlayerVehicle != null) {
@@ -186,6 +191,11 @@ object DeathSwapStateManager {
             shuffledPlayers.last().sendMessage(
                 Text.literal("You were teleported to ")
                     .append(shuffledPlayers[0].displayName.copy().formatted(Formatting.GREEN)),
+                false
+            )
+            shuffledPlayers[0].sendMessage(
+                shuffledPlayers.last().displayName.copy().formatted(Formatting.GREEN)
+                    .append(Text.literal(" teleported to you").formatted(Formatting.RESET)),
                 false
             )
 
