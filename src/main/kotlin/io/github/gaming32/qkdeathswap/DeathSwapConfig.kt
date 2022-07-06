@@ -6,6 +6,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.World
+import org.quiltmc.config.api.annotations.Comment
 import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.config.QuiltConfig
 
@@ -16,15 +17,30 @@ object DeathSwapConfig {
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
     private val DIMENSION = TrackedValue.create(World.OVERWORLD.value.toString(), "dimension") { option ->
         option.constraint(IdentifierConstraint)
+        option.metadata(Comment.TYPE) { comments -> comments.add("" +
+            "The dimension in which deathswaps will take place, as a dimension identifier"
+        ) }
     }!!
-    private val RESISTANCE_TIME = TrackedValue.create(20 * 30, "resistance_time")!!
+    private val RESISTANCE_TIME = TrackedValue.create(20 * 30, "resistance_time") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "The number of ticks of resistance players will get at the beginning of the deathswap",
+            "Default 15 seconds"
+        ) }
+    }!!
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
+            section.metadata(Comment.TYPE) { comments -> comments.add(
+                "The amount of time between swaps, in ticks",
+                "Default 1-3 minutes"
+            ) }
             section.field(MIN_SWAP_TIME)
             section.field(MAX_SWAP_TIME)
         }
         section("spread_distance") { section ->
+            section.metadata(Comment.TYPE) { comments -> comments.add(
+                "The distance from 0,0 players are teleported to"
+            ) }
             section.field(MIN_SPREAD_DISTANCE)
             section.field(MAX_SPREAD_DISTANCE)
         }
