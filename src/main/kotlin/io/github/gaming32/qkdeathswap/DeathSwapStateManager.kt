@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.command.CommandException
+import net.minecraft.entity.Entity
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.LightningEntity
 import net.minecraft.entity.effect.StatusEffectInstance
@@ -119,20 +120,28 @@ object DeathSwapStateManager {
         var x = (distance * cos(angle)).toInt()
         var z = (distance * sin(angle)).toInt()
         if (world.dimension.hasCeiling) {
-            val topY = world.dimension.logicalHeight - world.dimension.minimumY
-            var blockPos = BlockPos.Mutable()
+            val topY = world.dimension.logicalHeight + world.dimension.minimumY
+            val blockPos = BlockPos.Mutable()
             searchLoop@ while (true) {
                 blockPos.set(x, topY, z)
                 for (i in topY downTo world.dimension.minimumY) {
-                    val state = world.getBlockState(blockPos.setY(i - 2));
-                    if (world.getBlockState(blockPos.setY(i)).isAir && world.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && state.isSolidBlock(world, blockPos)) {
+                    val state = world.getBlockState(blockPos.setY(i - 2))
+                    val solid = state.isSolidBlock(world, blockPos)
+                    if (world.getBlockState(blockPos.setY(i)).isAir && world.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && solid) {
                         break@searchLoop
                     }
                 }
-                // else
                 x = Random.nextInt(x-16..x+16)
                 z = Random.nextInt(z-16..z+16)
             }
+
+            player.teleport(
+                world,
+                x.toDouble(),
+                blockPos.y.toDouble(),
+                z.toDouble(),
+                0f, 0f
+            )
         } else {
             player.teleport(
                 world,
@@ -152,7 +161,7 @@ object DeathSwapStateManager {
             val shuffledPlayers = livingPlayers.shuffled()
             val firstPlayerLocation = shuffledPlayers[0].location
             val firstPlayerVehicle = shuffledPlayers[0].vehicle
-            var nextPlayerVehicle = shuffledPlayers[1].vehicle
+            var nextPlayerVehicle: Entity?
             for (i in 1 until shuffledPlayers.size) {
                 shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
                 if (DeathSwapConfig.rideOpponentEntityOnTeleport) {
