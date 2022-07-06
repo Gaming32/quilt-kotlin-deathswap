@@ -135,22 +135,33 @@ object DeathSwapStateManager {
             val firstPlayerLocation = shuffledPlayers[0].location
             for (i in 1 until shuffledPlayers.size) {
                 shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
+                shuffledPlayers[i - 1].sendMessage(
+                    Text.literal("You were teleported to ")
+                        .append(shuffledPlayers[i].displayName.copy().formatted(Formatting.GREEN)),
+                    false
+                )
             }
             shuffledPlayers.last().teleport(firstPlayerLocation)
+            shuffledPlayers.last().sendMessage(
+                Text.literal("You were teleported to ")
+                    .append(shuffledPlayers[0].displayName.copy().formatted(Formatting.GREEN)),
+                false
+            )
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
         }
         if (timeSinceLastSwap % 20 == 0) {
             server.allPlayers.forEach { player ->
-                player.sendMessage(
-                    Text.literal(
-                        "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
-                    ).formatted(
-                        if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
-                    ),
-                    true
+                var text = Text.literal(
+                    "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
+                ).formatted(
+                    if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
                 )
+                if (player.isSpectator) {
+                    text = text.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
+                }
+                player.sendMessage(text, true)
             }
         }
     }
