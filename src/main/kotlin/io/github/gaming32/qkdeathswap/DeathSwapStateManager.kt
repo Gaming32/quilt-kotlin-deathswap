@@ -13,6 +13,7 @@ import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -42,8 +43,8 @@ object DeathSwapStateManager {
 
         state = GameState.STARTED
         livingPlayers.clear()
-        var playerAngle = Random.nextDouble(0.0, 360.0)
-        val playerAngleChange = 360.0 / server.allPlayers.size
+        var playerAngle = Random.nextDouble(0.0, PI * 2)
+        val playerAngleChange = PI * 2 / server.allPlayers.size
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
             resetPlayer(player, includeInventory = true)
@@ -146,7 +147,7 @@ object DeathSwapStateManager {
                     Text.literal(
                         "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
                     ).formatted(
-                        if (timeSinceLastSwap >= DeathSwapConfig.maxSwapTime) Formatting.RED else Formatting.GREEN
+                        if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
                     ),
                     true
                 )

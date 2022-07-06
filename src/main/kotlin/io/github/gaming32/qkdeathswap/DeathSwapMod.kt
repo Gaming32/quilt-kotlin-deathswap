@@ -87,7 +87,7 @@ object DeathSwapMod : ModInitializer {
                             executes { ctx ->
                                 ctx.source.sendFeedback(Text.literal(
                                     "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
-                                ), true)
+                                ), false)
                                 1
                             }
                         }
@@ -100,20 +100,23 @@ object DeathSwapMod : ModInitializer {
             if (!DeathSwapStateManager.hasBegun()) {
                 return@register true
             }
-            // Copy-paste (and cleanup/Kotlin conversion) from ServerPlayerEntity#onDeath
-            if (player.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)) {
-                val text = player.damageTracker.deathMessage
-                val abstractTeam = player.scoreboardTeam
-                if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                    player.server.playerManager.broadcastSystemMessage(text, MessageType.SYSTEM)
-                } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
-                    player.server.playerManager.sendSystemMessageToTeam(player, text)
-                } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
-                    player.server.playerManager.sendSystemMessageToOtherTeams(player, text)
+            val shouldCancelDeathScreen = DeathSwapStateManager.livingPlayers.size > 2
+            if (shouldCancelDeathScreen) {
+                // Copy-paste (and cleanup/Kotlin conversion) from ServerPlayerEntity#onDeath
+                if (player.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)) {
+                    val text = player.damageTracker.deathMessage
+                    val abstractTeam = player.scoreboardTeam
+                    if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
+                        player.server.playerManager.broadcastSystemMessage(text, MessageType.SYSTEM)
+                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
+                        player.server.playerManager.sendSystemMessageToTeam(player, text)
+                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
+                        player.server.playerManager.sendSystemMessageToOtherTeams(player, text)
+                    }
                 }
             }
             DeathSwapStateManager.removePlayer(player)
-            false
+            !shouldCancelDeathScreen
         }
 
         EventRegistration.onServerTickEnd {
