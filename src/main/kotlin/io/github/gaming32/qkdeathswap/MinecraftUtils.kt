@@ -51,17 +51,7 @@ fun ticksToMinutesSeconds(ticks: Int): String {
 }
 
 fun WorldChunk.getTopBlock(x: Int, z: Int): Int {
-    var topY = getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z) - 1
-    if (!world.dimension.hasCeiling) {
-        return topY
-    }
-    while (--topY >= bottomY) {
-        if (getBlockState(BlockPos(x, topY, z)).isAir) continue
-        if (!getBlockState(BlockPos(x, topY + 1, z)).isAir) continue
-        if (!getBlockState(BlockPos(x, topY + 2, z)).isAir) continue
-        break
-    }
-    return topY
+    return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z) - 1
 }
 
 fun <S, A, T : ArgumentBuilder<S, T>?> ArgumentBuilder<S, T>.argument(

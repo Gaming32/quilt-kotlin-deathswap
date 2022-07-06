@@ -10,6 +10,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
+import net.minecraft.util.math.BlockPos
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
@@ -115,15 +116,32 @@ object DeathSwapStateManager {
 
     fun spreadPlayer(world: ServerWorld, player: ServerPlayerEntity, angle: Double) {
         val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
-        val x = (distance * cos(angle)).toInt()
-        val z = (distance * sin(angle)).toInt()
-        player.teleport(
-            world,
-            x.toDouble(),
-            (world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf) + 1).toDouble(),
-            z.toDouble(),
-            0f, 0f
-        )
+        var x = (distance * cos(angle)).toInt()
+        var z = (distance * sin(angle)).toInt()
+        if (world.dimension.hasCeiling) {
+            val topY = world.dimension.logicalHeight - world.dimension.minimumY
+            var blockPos = BlockPos.Mutable()
+            searchLoop@ while (true) {
+                blockPos.set(x, topY, z)
+                for (i in topY downTo world.dimension.minimumY) {
+                    val state = world.getBlockState(blockPos.setY(i - 2));
+                    if (world.getBlockState(blockPos.setY(i)).isAir && world.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && state.isSolidBlock(world, blockPos)) {
+                        break@searchLoop
+                    }
+                }
+                // else
+                x = Random.nextInt(x-16..x+16)
+                z = Random.nextInt(z-16..z+16)
+            }
+        } else {
+            player.teleport(
+                world,
+                x.toDouble(),
+                (world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf) + 1).toDouble(),
+                z.toDouble(),
+                0f, 0f
+            )
+        }
     }
 
     fun tick(server: MinecraftServer) {
