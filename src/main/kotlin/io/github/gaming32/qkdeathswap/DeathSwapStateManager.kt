@@ -170,6 +170,8 @@ object DeathSwapStateManager {
                 }
                 for (player in livingPlayers) {
                     teleportTargets[player.uuid]?.let { pos ->
+                        player.velocity = Vec3d.ZERO
+                        player.fallDistance = 0f
                         player.networkHandler.requestTeleport(pos.x, pos.y, pos.z, player.yaw, player.pitch)
                     }
                 }
