@@ -12,9 +12,11 @@ import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Vec3d
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
+import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -31,8 +33,11 @@ object DeathSwapStateManager {
 
     var timeSinceLastSwap = 0
     var timeToSwap = 0
+    var teleportLoadTimer = -1
 
     val livingPlayers = mutableSetOf<ServerPlayerEntity>()
+
+    val teleportTargets = mutableMapOf<UUID, Vec3d>()
 
     fun hasBegun(): Boolean {
         return state == GameState.STARTED
@@ -154,6 +159,23 @@ object DeathSwapStateManager {
     }
 
     fun tick(server: MinecraftServer) {
+        if (teleportLoadTimer >= 0) {
+            if (--teleportLoadTimer < 0) {
+                for (world in server.worlds) {
+                    for (entity in world.iterateEntities()) {
+                        if (entity.scoreboardTags.contains("teleport_subst")) {
+                            entity.remove(Entity.RemovalReason.DISCARDED)
+                        }
+                    }
+                }
+                for (player in livingPlayers) {
+                    teleportTargets[player.uuid]?.let { pos ->
+                        player.networkHandler.requestTeleport(pos.x, pos.y, pos.z, player.yaw, player.pitch)
+                    }
+                }
+            }
+        }
+
         timeSinceLastSwap++
         if (timeSinceLastSwap > timeToSwap) {
             server.broadcast("Swapping!")
@@ -191,6 +213,7 @@ object DeathSwapStateManager {
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
+            teleportLoadTimer = DeathSwapConfig.teleportLoadTime
         }
         if (timeSinceLastSwap % 20 == 0) {
             server.allPlayers.forEach { player ->

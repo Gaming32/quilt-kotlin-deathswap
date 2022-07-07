@@ -33,6 +33,12 @@ object DeathSwapConfig {
             "Default 15 seconds"
         ) }
     }!!
+    private val TELEPORT_LOAD_TIME = TrackedValue.create(20 * 5, "teleport_load_time") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "The number of ticks it takes for the player to load after teleporting",
+            "Default 5 seconds"
+        ) }
+    }
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
@@ -53,6 +59,7 @@ object DeathSwapConfig {
         field(RIDE_OPPONENT_ENTITY_ON_TELEPORT)
         field(DIMENSION)
         field(RESISTANCE_TIME)
+        field(TELEPORT_LOAD_TIME)
     })!!
 
     private val baseTimeType = Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
@@ -63,7 +70,8 @@ object DeathSwapConfig {
         MAX_SPREAD_DISTANCE.key() to baseTimeType,
         RIDE_OPPONENT_ENTITY_ON_TELEPORT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
-        RESISTANCE_TIME.key() to baseTimeType
+        RESISTANCE_TIME.key() to baseTimeType,
+        TELEPORT_LOAD_TIME.key() to baseTimeType
     )
 
     var minSwapTime: Int
@@ -112,5 +120,11 @@ object DeathSwapConfig {
         get() = RESISTANCE_TIME.value()
         set(value) {
             RESISTANCE_TIME.setValue(value, true)
+        }
+
+    var teleportLoadTime: Int
+        get() = TELEPORT_LOAD_TIME.value()
+        set(value) {
+            TELEPORT_LOAD_TIME.setValue(value, true)
         }
 }
