@@ -179,7 +179,7 @@ object DeathSwapStateManager {
                 )
                 shuffledPlayers[i].sendMessage(
                     shuffledPlayers[i - 1].displayName.copy().formatted(Formatting.GREEN)
-                        .append(Text.literal(" teleported to you").formatted(Formatting.RESET)),
+                        .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
                     false
                 )
             }
@@ -195,7 +195,7 @@ object DeathSwapStateManager {
             )
             shuffledPlayers[0].sendMessage(
                 shuffledPlayers.last().displayName.copy().formatted(Formatting.GREEN)
-                    .append(Text.literal(" teleported to you").formatted(Formatting.RESET)),
+                    .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
                 false
             )
 
