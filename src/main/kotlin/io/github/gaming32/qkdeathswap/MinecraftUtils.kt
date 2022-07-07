@@ -64,7 +64,7 @@ fun ticksToMinutesSeconds(ticks: Int): String {
 }
 
 fun WorldChunk.getTopBlock(x: Int, z: Int): Int {
-    return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z) - 1
+    return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z)
 }
 
 fun <S, A, T : ArgumentBuilder<S, T>?> ArgumentBuilder<S, T>.argument(
