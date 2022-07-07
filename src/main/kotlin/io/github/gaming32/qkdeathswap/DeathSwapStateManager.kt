@@ -55,7 +55,7 @@ object DeathSwapStateManager {
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
-            world.setWeather(6000, 0, false, false)
+            world.setWeather(0, 0, false, false)
             world.timeOfDay = 0
         }
         timeSinceLastSwap = 0
