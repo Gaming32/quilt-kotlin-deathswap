@@ -58,6 +58,21 @@ object DeathSwapConfig {
             "Whether players will swap their air"
         ) }
     }!!
+    private val SWAP_FROZEN = TrackedValue.create(false, "swap_frozen") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their frozen state"
+        ) }
+    }!!
+    private val SWAP_POTION_EFFECTS = TrackedValue.create(false, "swap_potion_effects") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their potion effects"
+        ) }
+    }!!
+    private val SWAP_INVENTORY = TrackedValue.create(false, "swap_inventory") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their inventory"
+        ) }
+    }!!
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
@@ -84,6 +99,9 @@ object DeathSwapConfig {
             section.field(SWAP_MOB_AGGRESSION)
             section.field(SWAP_FIRE)
             section.field(SWAP_AIR)
+            section.field(SWAP_FROZEN)
+            section.field(SWAP_POTION_EFFECTS)
+            section.field(SWAP_INVENTORY)
         }
     })!!
 
@@ -100,7 +118,10 @@ object DeathSwapConfig {
         SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_MOB_AGGRESSION.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_FIRE.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_AIR.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v }
+        SWAP_AIR.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_FROZEN.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_POTION_EFFECTS.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_INVENTORY.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v }
     )
 
     var minSwapTime: Int
@@ -177,5 +198,23 @@ object DeathSwapConfig {
         get() = SWAP_AIR.value()
         set(value) {
             SWAP_AIR.setValue(value, true)
+        }
+
+    var swapFrozen: Boolean
+        get() = SWAP_FROZEN.value()
+        set(value) {
+            SWAP_FROZEN.setValue(value, true)
+        }
+
+    var swapPotionEffects: Boolean
+        get() = SWAP_POTION_EFFECTS.value()
+        set(value) {
+            SWAP_POTION_EFFECTS.setValue(value, true)
+        }
+
+    var swapInventory: Boolean
+        get() = SWAP_INVENTORY.value()
+        set(value) {
+            SWAP_INVENTORY.setValue(value, true)
         }
 }
