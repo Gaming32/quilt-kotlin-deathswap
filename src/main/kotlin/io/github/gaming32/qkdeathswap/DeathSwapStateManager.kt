@@ -180,7 +180,7 @@ object DeathSwapStateManager {
                 ).formatted(
                     if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
                 )
-                if (player.isSpectator) {
+                if (player.isSpectator || timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime) {
                     text = text.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
                 }
                 player.sendMessage(text, true)

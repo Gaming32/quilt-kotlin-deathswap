@@ -16,6 +16,7 @@ object DeathSwapConfig {
     private val MAX_SWAP_TIME = TrackedValue.create(20 * 180, "max")!!
     private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
+    private val WARN_TIME = TrackedValue.create(0, "warn")!!
     private val SWAP_MOUNT = TrackedValue.create(true, "swap_mount") { option ->
         option.metadata(Comment.TYPE) { comments -> comments.add(
             "The entity that the opponent is riding will stay ridden by the player on swap"
@@ -82,6 +83,7 @@ object DeathSwapConfig {
             ) }
             section.field(MIN_SWAP_TIME)
             section.field(MAX_SWAP_TIME)
+            section.field(WARN_TIME)
         }
         section("spread_distance") { section ->
             section.metadata(Comment.TYPE) { comments -> comments.add(
@@ -109,6 +111,7 @@ object DeathSwapConfig {
     val CONFIG_TYPES = mapOf(
         MIN_SWAP_TIME.key() to baseTimeType,
         MAX_SWAP_TIME.key() to baseTimeType,
+        WARN_TIME.key() to baseTimeType,
         MIN_SPREAD_DISTANCE.key() to baseTimeType,
         MAX_SPREAD_DISTANCE.key() to baseTimeType,
         SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
@@ -134,6 +137,12 @@ object DeathSwapConfig {
         get() = MAX_SWAP_TIME.value()
         set(value) {
             MAX_SWAP_TIME.setValue(value, true)
+        }
+
+    var warnTime: Int
+        get() = WARN_TIME.value()
+        set(value) {
+            WARN_TIME.setValue(value, true)
         }
 
     val swapTime: IntRange
