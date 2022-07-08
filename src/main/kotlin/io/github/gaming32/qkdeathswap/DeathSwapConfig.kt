@@ -17,7 +17,7 @@ object DeathSwapConfig {
     private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
     private val WARN_TIME = TrackedValue.create(0, "warn")!!
-    private val SWAP_MOUNT = TrackedValue.create(true, "swap_mount") { option ->
+    private val SWAP_MOUNT = TrackedValue.create(true, "mount") { option ->
         option.metadata(Comment.TYPE) { comments -> comments.add(
             "The entity that the opponent is riding will stay ridden by the player on swap"
         ) }
@@ -34,42 +34,42 @@ object DeathSwapConfig {
             "Default 15 seconds"
         ) }
     }!!
-    private val SWAP_HEALTH = TrackedValue.create(false, "swap_health") {
+    private val SWAP_HEALTH = TrackedValue.create(false, "health") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their health"
         ) }
     }!!
-    private val SWAP_MOB_AGGRESSION = TrackedValue.create(false, "swap_mob_aggression") {
+    private val SWAP_MOB_AGGRESSION = TrackedValue.create(false, "mob_aggression") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their mob aggression"
         ) }
     }!!
-    private val SWAP_HUNGER = TrackedValue.create(false, "swap_hunger") {
+    private val SWAP_HUNGER = TrackedValue.create(false, "hunger") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their hunger"
         ) }
     }!!
-    private val SWAP_FIRE = TrackedValue.create(false, "swap_fire") {
+    private val SWAP_FIRE = TrackedValue.create(false, "fire") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their fire"
         ) }
     }!!
-    private val SWAP_AIR = TrackedValue.create(false, "swap_air") {
+    private val SWAP_AIR = TrackedValue.create(false, "air") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their air"
         ) }
     }!!
-    private val SWAP_FROZEN = TrackedValue.create(false, "swap_frozen") {
+    private val SWAP_FROZEN = TrackedValue.create(false, "frozen") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their frozen state"
         ) }
     }!!
-    private val SWAP_POTION_EFFECTS = TrackedValue.create(false, "swap_potion_effects") {
+    private val SWAP_POTION_EFFECTS = TrackedValue.create(false, "potion_effects") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their potion effects"
         ) }
     }!!
-    private val SWAP_INVENTORY = TrackedValue.create(false, "swap_inventory") {
+    private val SWAP_INVENTORY = TrackedValue.create(false, "inventory") {
         option -> option.metadata(Comment.TYPE) { comments -> comments.add(
             "Whether players will swap their inventory"
         ) }
@@ -114,16 +114,15 @@ object DeathSwapConfig {
         field(TELEPORT_LOAD_TIME)
     })!!
 
-    private val baseTimeType = Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
     val CONFIG_TYPES = mapOf(
-        MIN_SWAP_TIME.key() to baseTimeType,
-        MAX_SWAP_TIME.key() to baseTimeType,
-        WARN_TIME.key() to baseTimeType,
-        MIN_SPREAD_DISTANCE.key() to baseTimeType,
-        MAX_SPREAD_DISTANCE.key() to baseTimeType,
+        MIN_SWAP_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        MAX_SWAP_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        WARN_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        MIN_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        MAX_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
-        RESISTANCE_TIME.key() to baseTimeType,
+        RESISTANCE_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_MOB_AGGRESSION.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
@@ -132,7 +131,7 @@ object DeathSwapConfig {
         SWAP_FROZEN.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_POTION_EFFECTS.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_INVENTORY.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        TELEPORT_LOAD_TIME.key() to baseTimeType
+        TELEPORT_LOAD_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
     )
 
     var minSwapTime: Int

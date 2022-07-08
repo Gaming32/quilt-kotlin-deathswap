@@ -1,7 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.command.CommandException
-import net.minecraft.entity.Entity
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.LightningEntity
 import net.minecraft.entity.effect.StatusEffectInstance
@@ -12,11 +11,9 @@ import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
-import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -33,7 +30,6 @@ object DeathSwapStateManager {
 
     var timeSinceLastSwap = 0
     var timeToSwap = 0
-    var teleportLoadTimer = -1
 
     val livingPlayers = mutableSetOf<ServerPlayerEntity>()
 
