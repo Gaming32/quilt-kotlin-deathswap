@@ -37,7 +37,7 @@ object DeathSwapStateManager {
 
     val livingPlayers = mutableSetOf<ServerPlayerEntity>()
 
-    val teleportTargets = mutableMapOf<UUID, Vec3d>()
+    val swapTargets = mutableSetOf<SwapForward>()
 
     fun hasBegun(): Boolean {
         return state == GameState.STARTED
@@ -159,73 +159,32 @@ object DeathSwapStateManager {
     }
 
     fun tick(server: MinecraftServer) {
-        if (teleportLoadTimer >= 0) {
-            if (--teleportLoadTimer < 0) {
-                for (world in server.worlds) {
-                    for (entity in world.iterateEntities()) {
-                        if (entity.scoreboardTags.contains("teleport_subst")) {
-                            entity.remove(Entity.RemovalReason.DISCARDED)
-                        }
-                    }
-                }
-                for (player in livingPlayers) {
-                    teleportTargets[player.uuid]?.let { pos ->
-                        player.velocity = Vec3d.ZERO
-                        player.fallDistance = 0f
-                        player.networkHandler.requestTeleport(pos.x, pos.y, pos.z, player.yaw, player.pitch)
-                    }
-                }
+        timeSinceLastSwap++
+
+        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime) {
+            for (player in swapTargets) {
+                player.swap()
             }
+            swapTargets.clear()
         }
 
-        timeSinceLastSwap++
         if (timeSinceLastSwap > timeToSwap) {
             server.broadcast("Swapping!")
 
             val shuffledPlayers = livingPlayers.shuffled()
-            val firstPlayerLocation = shuffledPlayers[0].location
-            val firstPlayerVehicle = shuffledPlayers[0].vehicle
-            var nextPlayerVehicle: Entity?
+            swapTargets.clear()
+
             for (i in 1 until shuffledPlayers.size) {
-                shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
-                if (DeathSwapConfig.rideOpponentEntityOnTeleport) {
-                    nextPlayerVehicle = shuffledPlayers[i].vehicle
-                    nextPlayerVehicle?.stopRiding()
-                    if (nextPlayerVehicle != null) {
-                        shuffledPlayers[i - 1].startRiding(nextPlayerVehicle, true)
-                    }
-                }
-
-                shuffledPlayers[i - 1].sendMessage(
-                    Text.literal("You were teleported to ")
-                        .append(shuffledPlayers[i].displayName.copy().formatted(Formatting.GREEN)),
-                    false
-                )
-                shuffledPlayers[i].sendMessage(
-                    shuffledPlayers[i - 1].displayName.copy().formatted(Formatting.GREEN)
-                        .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-                    false
-                )
+                swapTargets.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
             }
-            shuffledPlayers.last().teleport(firstPlayerLocation)
-            if (DeathSwapConfig.rideOpponentEntityOnTeleport && firstPlayerVehicle != null) {
-                shuffledPlayers.last().startRiding(firstPlayerVehicle, true)
-            }
+            swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
 
-            shuffledPlayers.last().sendMessage(
-                Text.literal("You were teleported to ")
-                    .append(shuffledPlayers[0].displayName.copy().formatted(Formatting.GREEN)),
-                false
-            )
-            shuffledPlayers[0].sendMessage(
-                shuffledPlayers.last().displayName.copy().formatted(Formatting.GREEN)
-                    .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-                false
-            )
+            swapTargets.forEach {
+                it.preSwap()
+            }
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
-            teleportLoadTimer = DeathSwapConfig.teleportLoadTime
         }
         if (timeSinceLastSwap % 20 == 0) {
             server.allPlayers.forEach { player ->
@@ -234,7 +193,7 @@ object DeathSwapStateManager {
                 ).formatted(
                     if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
                 )
-                if (player.isSpectator) {
+                if (player.isSpectator || timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime) {
                     text = text.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
                 }
                 player.sendMessage(text, true)

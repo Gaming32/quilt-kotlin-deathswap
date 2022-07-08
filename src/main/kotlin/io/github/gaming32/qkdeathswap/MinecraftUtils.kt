@@ -38,20 +38,11 @@ fun ServerPlayerEntity.teleport(location: Location) {
     teleport(
         world,
         location.x,
-        10000.0,
+        location.y,
         location.z,
         location.yaw ?: yaw,
         location.pitch ?: pitch
     )
-
-    world.spawnEntity(ArmorStandEntity(world, location.x, location.y, location.z).apply {
-        (this as EntityAccessor).setDimensions(this@teleport.getDimensions(location.pose ?: this@teleport.pose))
-        isInvulnerable = true
-        setNoGravity(true)
-        addScoreboardTag("teleport_subst")
-    })
-
-    DeathSwapStateManager.teleportTargets[uuid] = Vec3d(location.x, location.y, location.z)
 }
 
 val PlayerEntity.location: Location
