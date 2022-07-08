@@ -33,6 +33,11 @@ object DeathSwapConfig {
             "Default 15 seconds"
         ) }
     }!!
+    private val SWAP_HEALTH = TrackedValue.create(false, "swap_health") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their health"
+        ) }
+    }!!
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
@@ -50,9 +55,12 @@ object DeathSwapConfig {
             section.field(MIN_SPREAD_DISTANCE)
             section.field(MAX_SPREAD_DISTANCE)
         }
-        field(RIDE_OPPONENT_ENTITY_ON_TELEPORT)
         field(DIMENSION)
         field(RESISTANCE_TIME)
+        section("swap_options") {
+            field(RIDE_OPPONENT_ENTITY_ON_TELEPORT)
+            field(SWAP_HEALTH)
+        }
     })!!
 
     private val baseTimeType = Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
@@ -63,7 +71,8 @@ object DeathSwapConfig {
         MAX_SPREAD_DISTANCE.key() to baseTimeType,
         RIDE_OPPONENT_ENTITY_ON_TELEPORT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
-        RESISTANCE_TIME.key() to baseTimeType
+        RESISTANCE_TIME.key() to baseTimeType,
+        SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v }
     )
 
     var minSwapTime: Int
@@ -112,5 +121,10 @@ object DeathSwapConfig {
         get() = RESISTANCE_TIME.value()
         set(value) {
             RESISTANCE_TIME.setValue(value, true)
+        }
+    var swapHealth: Boolean
+        get() = SWAP_HEALTH.value()
+        set(value) {
+            SWAP_HEALTH.setValue(value, true)
         }
 }

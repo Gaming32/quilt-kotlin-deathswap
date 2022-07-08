@@ -161,6 +161,7 @@ object DeathSwapStateManager {
             val shuffledPlayers = livingPlayers.shuffled()
             val firstPlayerLocation = shuffledPlayers[0].location
             val firstPlayerVehicle = shuffledPlayers[0].vehicle
+            val firstPlayerHealth = shuffledPlayers[0].health
             var nextPlayerVehicle: Entity?
             for (i in 1 until shuffledPlayers.size) {
                 shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
@@ -170,6 +171,10 @@ object DeathSwapStateManager {
                     if (nextPlayerVehicle != null) {
                         shuffledPlayers[i - 1].startRiding(nextPlayerVehicle, true)
                     }
+                }
+
+                if (DeathSwapConfig.swapHealth) {
+                    shuffledPlayers[i - 1].health = shuffledPlayers[i].health
                 }
 
                 shuffledPlayers[i - 1].sendMessage(
@@ -186,6 +191,9 @@ object DeathSwapStateManager {
             shuffledPlayers.last().teleport(firstPlayerLocation)
             if (DeathSwapConfig.rideOpponentEntityOnTeleport && firstPlayerVehicle != null) {
                 shuffledPlayers.last().startRiding(firstPlayerVehicle, true)
+            }
+            if (DeathSwapConfig.swapHealth) {
+                shuffledPlayers.last().health = firstPlayerHealth
             }
 
             shuffledPlayers.last().sendMessage(
