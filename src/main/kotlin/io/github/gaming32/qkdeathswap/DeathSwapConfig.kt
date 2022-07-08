@@ -16,7 +16,7 @@ object DeathSwapConfig {
     private val MAX_SWAP_TIME = TrackedValue.create(20 * 180, "max")!!
     private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
-    private val RIDE_OPPONENT_ENTITY_ON_TELEPORT = TrackedValue.create(true, "ride_opponent_entity_on_teleport") { option ->
+    private val SWAP_MOUNT = TrackedValue.create(true, "swap_mount") { option ->
         option.metadata(Comment.TYPE) { comments -> comments.add(
             "The entity that the opponent is riding will stay ridden by the player on swap"
         ) }
@@ -38,6 +38,26 @@ object DeathSwapConfig {
             "Whether players will swap their health"
         ) }
     }!!
+    private val SWAP_MOB_AGGRESSION = TrackedValue.create(false, "swap_mob_aggression") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their mob aggression"
+        ) }
+    }!!
+    private val SWAP_HUNGER = TrackedValue.create(false, "swap_hunger") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their hunger"
+        ) }
+    }!!
+    private val SWAP_FIRE = TrackedValue.create(false, "swap_fire") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their fire"
+        ) }
+    }!!
+    private val SWAP_AIR = TrackedValue.create(false, "swap_air") {
+        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether players will swap their air"
+        ) }
+    }!!
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
@@ -57,9 +77,13 @@ object DeathSwapConfig {
         }
         field(DIMENSION)
         field(RESISTANCE_TIME)
-        section("swap_options") {
-            field(RIDE_OPPONENT_ENTITY_ON_TELEPORT)
-            field(SWAP_HEALTH)
+        section("swap_options") { section ->
+            section.field(SWAP_MOUNT)
+            section.field(SWAP_HEALTH)
+            section.field(SWAP_HUNGER)
+            section.field(SWAP_MOB_AGGRESSION)
+            section.field(SWAP_FIRE)
+            section.field(SWAP_AIR)
         }
     })!!
 
@@ -69,10 +93,14 @@ object DeathSwapConfig {
         MAX_SWAP_TIME.key() to baseTimeType,
         MIN_SPREAD_DISTANCE.key() to baseTimeType,
         MAX_SPREAD_DISTANCE.key() to baseTimeType,
-        RIDE_OPPONENT_ENTITY_ON_TELEPORT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
         RESISTANCE_TIME.key() to baseTimeType,
-        SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v }
+        SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_MOB_AGGRESSION.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_FIRE.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        SWAP_AIR.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v }
     )
 
     var minSwapTime: Int
@@ -105,10 +133,10 @@ object DeathSwapConfig {
     val spreadDistance: IntRange
         get() = minSpreadDistance..maxSpreadDistance
 
-    var rideOpponentEntityOnTeleport: Boolean
-        get() = RIDE_OPPONENT_ENTITY_ON_TELEPORT.value()
+    var swapMount: Boolean
+        get() = SWAP_MOUNT.value()
         set(value) {
-            RIDE_OPPONENT_ENTITY_ON_TELEPORT.setValue(value, true)
+            SWAP_MOUNT.setValue(value, true)
         }
 
     var dimension: RegistryKey<World>
@@ -126,5 +154,28 @@ object DeathSwapConfig {
         get() = SWAP_HEALTH.value()
         set(value) {
             SWAP_HEALTH.setValue(value, true)
+        }
+    var swapHunger: Boolean
+        get() = SWAP_HUNGER.value()
+        set(value) {
+            SWAP_HUNGER.setValue(value, true)
+        }
+
+    var swapMobAggression: Boolean
+        get() = SWAP_MOB_AGGRESSION.value()
+        set(value) {
+            SWAP_MOB_AGGRESSION.setValue(value, true)
+        }
+
+    var swapFire: Boolean
+        get() = SWAP_FIRE.value()
+        set(value) {
+            SWAP_FIRE.setValue(value, true)
+        }
+
+    var swapAir: Boolean
+        get() = SWAP_AIR.value()
+        set(value) {
+            SWAP_AIR.setValue(value, true)
         }
 }

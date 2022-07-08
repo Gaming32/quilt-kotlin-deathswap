@@ -159,53 +159,16 @@ object DeathSwapStateManager {
             server.broadcast("Swapping!")
 
             val shuffledPlayers = livingPlayers.shuffled()
-            val firstPlayerLocation = shuffledPlayers[0].location
-            val firstPlayerVehicle = shuffledPlayers[0].vehicle
-            val firstPlayerHealth = shuffledPlayers[0].health
-            var nextPlayerVehicle: Entity?
+            val swapList = mutableListOf<SwapForward>()
+
             for (i in 1 until shuffledPlayers.size) {
-                shuffledPlayers[i - 1].teleport(shuffledPlayers[i].location)
-                if (DeathSwapConfig.rideOpponentEntityOnTeleport) {
-                    nextPlayerVehicle = shuffledPlayers[i].vehicle
-                    nextPlayerVehicle?.stopRiding()
-                    if (nextPlayerVehicle != null) {
-                        shuffledPlayers[i - 1].startRiding(nextPlayerVehicle, true)
-                    }
-                }
-
-                if (DeathSwapConfig.swapHealth) {
-                    shuffledPlayers[i - 1].health = shuffledPlayers[i].health
-                }
-
-                shuffledPlayers[i - 1].sendMessage(
-                    Text.literal("You were teleported to ")
-                        .append(shuffledPlayers[i].displayName.copy().formatted(Formatting.GREEN)),
-                    false
-                )
-                shuffledPlayers[i].sendMessage(
-                    shuffledPlayers[i - 1].displayName.copy().formatted(Formatting.GREEN)
-                        .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-                    false
-                )
+                swapList.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
             }
-            shuffledPlayers.last().teleport(firstPlayerLocation)
-            if (DeathSwapConfig.rideOpponentEntityOnTeleport && firstPlayerVehicle != null) {
-                shuffledPlayers.last().startRiding(firstPlayerVehicle, true)
-            }
-            if (DeathSwapConfig.swapHealth) {
-                shuffledPlayers.last().health = firstPlayerHealth
-            }
+            swapList.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
 
-            shuffledPlayers.last().sendMessage(
-                Text.literal("You were teleported to ")
-                    .append(shuffledPlayers[0].displayName.copy().formatted(Formatting.GREEN)),
-                false
-            )
-            shuffledPlayers[0].sendMessage(
-                shuffledPlayers.last().displayName.copy().formatted(Formatting.GREEN)
-                    .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-                false
-            )
+            swapList.forEach {
+                it.swap()
+            }
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
