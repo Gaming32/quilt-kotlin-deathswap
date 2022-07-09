@@ -31,8 +31,6 @@ object DeathSwapStateManager {
 
     private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
 
-    private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
-
     val livingPlayers = mutableSetOf<ServerPlayerEntity>()
 
     private val swapTargets = mutableSetOf<SwapForward>()
