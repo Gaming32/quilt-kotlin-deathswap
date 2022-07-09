@@ -32,11 +32,16 @@ object DeathSwapMod : ModInitializer {
                     requires { it.hasPermissionLevel(1) }
                     literal("start") {
                         executes { ctx ->
-                            if (!QuiltLoader.isDevelopmentEnvironment() && ctx.source.server.allPlayers.size < 2) {
-                                throw CommandException(Text.literal("Cannot start a DeathSwap with less than 2 players."))
+                            try {
+                                if (!QuiltLoader.isDevelopmentEnvironment() && ctx.source.server.allPlayers.size < 2) {
+                                    throw CommandException(Text.literal("Cannot start a DeathSwap with less than 2 players."))
+                                }
+                                DeathSwapStateManager.begin(ctx.source.server)
+                                ctx.source.server.broadcast("Deathswap started!")
+                            } catch (e: Exception) {
+                                LOGGER.error("Error starting DeathSwap", e)
+                                throw e
                             }
-                            DeathSwapStateManager.begin(ctx.source.server)
-                            ctx.source.server.broadcast("Deathswap started!")
                             1
                         }
                     }

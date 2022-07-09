@@ -7,10 +7,8 @@ import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
-import net.minecraft.util.math.BlockPos
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
@@ -21,7 +19,7 @@ import kotlin.random.Random
 import kotlin.random.nextInt
 
 enum class GameState {
-    NOT_STARTED, STARTED
+    NOT_STARTED, STARTING, STARTED
 }
 
 object DeathSwapStateManager {
@@ -31,12 +29,16 @@ object DeathSwapStateManager {
     var timeSinceLastSwap = 0
     var timeToSwap = 0
 
+    private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
+
+    private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
+
     val livingPlayers = mutableSetOf<ServerPlayerEntity>()
 
-    val swapTargets = mutableSetOf<SwapForward>()
+    private val swapTargets = mutableSetOf<SwapForward>()
 
     fun hasBegun(): Boolean {
-        return state == GameState.STARTED
+        return state != GameState.NOT_STARTED
     }
 
     fun begin(server: MinecraftServer) {
@@ -44,15 +46,17 @@ object DeathSwapStateManager {
             throw CommandException(Text.literal("Game already begun"))
         }
 
-        state = GameState.STARTED
+        state = GameState.STARTING
         livingPlayers.clear()
         var playerAngle = Random.nextDouble(0.0, PI * 2)
         val playerAngleChange = PI * 2 / server.allPlayers.size
+        playerStartLocation.clear()
         server.allPlayers.forEach { player ->
             livingPlayers.add(player)
-            resetPlayer(player, includeInventory = true)
-            player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, DeathSwapConfig.resistanceTime, 255, true, false, true))
-            spreadPlayer(server.getWorld(DeathSwapConfig.dimension) ?: server.getWorld(World.OVERWORLD)!!, player, playerAngle)
+            val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
+            val x = (distance * cos(playerAngle)).toInt()
+            val z = (distance * sin(playerAngle)).toInt()
+            playerStartLocation.add(PlayerStartLocation(server.getWorld(DeathSwapConfig.dimension) ?: server.getWorld(World.OVERWORLD)!!, player, x, z))
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
@@ -116,46 +120,32 @@ object DeathSwapStateManager {
         player.clearStatusEffects()
     }
 
-    fun spreadPlayer(world: ServerWorld, player: ServerPlayerEntity, angle: Double) {
-        val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
-        var x = (distance * cos(angle)).toInt()
-        var z = (distance * sin(angle)).toInt()
-        if (world.dimension.hasCeiling) {
-            val topY = world.dimension.logicalHeight + world.dimension.minimumY
-            val blockPos = BlockPos.Mutable()
-            searchLoop@ while (true) {
-                blockPos.set(x, topY, z)
-                for (i in topY downTo world.dimension.minimumY) {
-                    val state = world.getBlockState(blockPos.setY(i - 2))
-                    val solid = state.isSolidBlock(world, blockPos)
-                    if (world.getBlockState(blockPos.setY(i)).isAir && world.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && solid) {
-                        break@searchLoop
-                    }
-                }
-                x = Random.nextInt(x-16..x+16)
-                z = Random.nextInt(z-16..z+16)
-            }
-
-            player.teleport(
-                world,
-                x.toDouble(),
-                blockPos.y.toDouble(),
-                z.toDouble(),
-                0f, 0f
-            )
-        } else {
-            player.teleport(
-                world,
-                x.toDouble(),
-                (world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf) + 1).toDouble(),
-                z.toDouble(),
-                0f, 0f
-            )
-        }
-    }
-
     fun tick(server: MinecraftServer) {
         timeSinceLastSwap++
+        if (state == GameState.STARTING) {
+            if (playerStartLocation.stream().allMatch { it.tick() }) {
+                playerStartLocation.forEach { loc ->
+                    resetPlayer(loc.player, includeInventory = true)
+                    loc.player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, DeathSwapConfig.resistanceTime, 255, true, false, true))
+                    loc.player.teleport(
+                        loc.world,
+                        loc.x.toDouble(),
+                        loc.y.toDouble(),
+                        loc.z.toDouble(),
+                        0f, 0f
+                    )
+                }
+                timeSinceLastSwap = 0
+                state = GameState.STARTED
+            }
+            if (timeSinceLastSwap % 20 == 0) {
+                val starting = Text.literal("Finding start locations: ").append(Text.literal(ticksToMinutesSeconds(timeSinceLastSwap)).formatted(Formatting.YELLOW))
+                server.allPlayers.forEach { player ->
+                    player.sendMessage(starting, true)
+                }
+            }
+            return
+        }
 
         if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime) {
             for (player in swapTargets) {
@@ -183,16 +173,17 @@ object DeathSwapStateManager {
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
         }
         if (timeSinceLastSwap % 20 == 0) {
+            val text = Text.literal(
+                "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
+            ).formatted(
+                if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
+            )
             server.allPlayers.forEach { player ->
-                var text = Text.literal(
-                    "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
-                ).formatted(
-                    if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime) Formatting.RED else Formatting.GREEN
-                )
+                val text2 = text.copy()
                 if (player.isSpectator || timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime) {
-                    text = text.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
+                    text2.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
                 }
-                player.sendMessage(text, true)
+                player.sendMessage(text2, true)
             }
         }
     }
