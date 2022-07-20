@@ -19,7 +19,7 @@ import kotlin.random.Random
 import kotlin.random.nextInt
 
 enum class GameState {
-    NOT_STARTED, STARTING, STARTED
+    NOT_STARTED, STARTING, STARTED, TELEPORTING;
 }
 
 object DeathSwapStateManager {
@@ -150,6 +150,7 @@ object DeathSwapStateManager {
                 player.swap()
             }
             swapTargets.clear()
+            state = GameState.STARTED
         }
 
         if (timeSinceLastSwap > timeToSwap) {
@@ -162,7 +163,7 @@ object DeathSwapStateManager {
                 swapTargets.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
             }
             swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
-
+            state = GameState.TELEPORTING
             swapTargets.forEach {
                 it.preSwap()
             }
