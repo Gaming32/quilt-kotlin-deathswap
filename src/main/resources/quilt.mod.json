@@ -16,7 +16,8 @@
 				"issues": "https://github.com/Gaming32/quilt-kotlin-deathswap/issues",
 				"sources": "https://github.com/Gaming32/quilt-kotlin-deathswap"
 			},
-			"license": "MIT"
+			"license": "MIT",
+			"icon": "assets/qkdeathswap/icon.png"
 		},
 		"intermediate_mappings": "net.fabricmc:intermediary",
 		"entrypoints": {
