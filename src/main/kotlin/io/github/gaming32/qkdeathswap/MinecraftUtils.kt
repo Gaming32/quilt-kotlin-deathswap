@@ -1,8 +1,5 @@
 package io.github.gaming32.qkdeathswap
 
-import com.mojang.brigadier.arguments.ArgumentType
-import com.mojang.brigadier.builder.ArgumentBuilder
-import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.network.MessageType
 import net.minecraft.server.MinecraftServer
@@ -12,7 +9,6 @@ import net.minecraft.text.Text
 import net.minecraft.world.Heightmap
 import net.minecraft.world.World
 import net.minecraft.world.chunk.WorldChunk
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.RequiredArgumentAction
 
 fun MinecraftServer.broadcast(message: String) {
     broadcast(Text.literal(message))
@@ -54,17 +50,3 @@ fun ticksToMinutesSeconds(ticks: Int): String {
 fun WorldChunk.getTopBlock(x: Int, z: Int): Int {
     return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z)
 }
-
-fun <S, A, T : ArgumentBuilder<S, T>?> ArgumentBuilder<S, T>.argument(
-    name: String,
-    type: ArgumentType<A>,
-    action: RequiredArgumentAction<S>
-) {
-    val argument = RequiredArgumentBuilder.argument<S, A>(
-        name,
-        type
-    )
-    argument.apply(action)
-    then(argument)
-}
-

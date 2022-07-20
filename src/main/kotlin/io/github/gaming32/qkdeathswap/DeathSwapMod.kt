@@ -1,5 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
+import com.mojang.brigadier.arguments.ArgumentType
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.network.MessageType
@@ -10,8 +11,10 @@ import net.minecraft.world.GameRules
 import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.literal
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.register
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
@@ -30,7 +33,7 @@ object DeathSwapMod : ModInitializer {
             onCommandRegistration { buildContext, environment ->
                 register("deathswap") {
                     requires { it.hasPermissionLevel(1) }
-                    literal("start") {
+                    required(literal("start")) {
                         executes { ctx ->
                             try {
                                 if (!QuiltLoader.isDevelopmentEnvironment() && ctx.source.server.allPlayers.size < 2) {
@@ -45,22 +48,22 @@ object DeathSwapMod : ModInitializer {
                             1
                         }
                     }
-                    literal("stop") {
+                    required(literal("stop")) {
                         executes { ctx ->
                             DeathSwapStateManager.endGame(ctx.source.server)
                             ctx.source.server.broadcast("Deathswap ended!")
                             1
                         }
                     }
-                    literal("config") {
+                    required(literal("config")) {
                         DeathSwapConfig.CONFIG.values().forEach { option ->
-                            literal(option.key().toString()) {
+                            required(literal(option.key().toString())) {
                                 executes { ctx ->
                                     ctx.source.sendFeedback(Text.literal("${option.key()} -> ${option.value()}"), false)
                                     1
                                 }
                                 val valueType = DeathSwapConfig.CONFIG_TYPES[option.key()]!!
-                                argument("value", valueType.first) {
+                                required(argument("value", valueType.first as ArgumentType)) { value ->
                                     @Suppress("UNCHECKED_CAST")
                                     executes { ctx ->
                                         val newValue = (valueType.second as (Any) -> Any)(ctx.getArgument("value", Any::class.java))
@@ -82,14 +85,14 @@ object DeathSwapMod : ModInitializer {
                         }
                     }
                     if (QuiltLoader.isDevelopmentEnvironment()) {
-                        literal("debug") {
-                            literal("swap_now") {
+                        required(literal("debug")) {
+                            required(literal("swap_now")) {
                                 executes { ctx ->
                                     DeathSwapStateManager.timeToSwap = DeathSwapStateManager.timeSinceLastSwap
                                     1
                                 }
                             }
-                            literal("swap_at") {
+                            required(literal("swap_at")) {
                                 executes { ctx ->
                                     ctx.source.sendFeedback(Text.literal(
                                         "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
