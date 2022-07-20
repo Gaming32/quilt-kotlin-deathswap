@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.network.MessageType
 import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
+import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
@@ -139,14 +140,14 @@ object DeathSwapMod : ModInitializer {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
                 }
             }
-
-            onPlayDisconnect {
-                if (DeathSwapStateManager.hasBegun()) {
-                    DeathSwapStateManager.removePlayer(player, strikeLightning = false)
-                }
-            }
         }
 
         LOGGER.info("qkdeathswap initialized!")
+    }
+
+    fun onPlayDoneDisconnecting(player: ServerPlayerEntity) {
+        if (DeathSwapStateManager.hasBegun()) {
+            DeathSwapStateManager.removePlayer(player, strikeLightning = false)
+        }
     }
 }
