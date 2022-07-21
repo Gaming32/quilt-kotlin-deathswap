@@ -23,7 +23,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val fireTicks = nextPlayer.fireTicks
     private val frozenTicks = nextPlayer.frozenTicks
 
-    private val statusEffects = if (DeathSwapConfig.swapPotionEffects) nextPlayer.activeStatusEffects.toMap() else null
+    private val statusEffects = if (DeathSwapConfig.swapPotionEffects) nextPlayer.activeStatusEffects else null
 
     private val angryMobs = if (DeathSwapConfig.swapMobAggression) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
 
@@ -117,13 +117,15 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         nextPlayer.sendMessage(
             thisPlayer.displayName.copy().formatted(Formatting.GREEN)
                 .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-        false
+            false
         )
     }
 
     private fun swapMobAggression() {
         angryMobs?.forEach {
-            println("making " + it.displayName + " angry at " + thisPlayer.displayName)
+            if (DeathSwapMod.LOGGER.isDebugEnabled) {
+                DeathSwapMod.LOGGER.debug("Making ${it.displayName.string} angry at ${thisPlayer.displayName.string}")
+            }
             (it as Angerable).angryAt = thisPlayer.uuid
             it.target = thisPlayer
         }

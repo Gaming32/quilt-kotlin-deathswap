@@ -7,7 +7,7 @@ import kotlin.random.Random
 import kotlin.random.nextInt
 
 class PlayerStartLocation(val world: ServerWorld, val player: ServerPlayerEntity, var x: Int, var z: Int) {
-    var y = world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf)
+    var y = 0
     private var ready = false
 
     init {
