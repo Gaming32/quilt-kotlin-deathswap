@@ -16,10 +16,9 @@ object DeathSwapConfig {
     private val MAX_SWAP_TIME = TrackedValue.create(20 * 180, "max")!!
     private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
     private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
-    private val WARN_TIME = TrackedValue.create(0, "warn")!!
-    private val SWAP_MOUNT = TrackedValue.create(true, "mount") { option ->
+    private val WARN_TIME = TrackedValue.create(0, "warn") { option ->
         option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The entity that the opponent is riding will stay ridden by the player on swap"
+            "The number of ticks before a swap to notify players"
         ) }
     }!!
     private val DIMENSION = TrackedValue.create(World.OVERWORLD.value.toString(), "dimension") { option ->
@@ -32,6 +31,11 @@ object DeathSwapConfig {
         option.metadata(Comment.TYPE) { comments -> comments.add(
             "The number of ticks of resistance players will get at the beginning of the deathswap",
             "Default 15 seconds"
+        ) }
+    }!!
+    private val SWAP_MOUNT = TrackedValue.create(true, "mount") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "The entity that the opponent is riding will stay ridden by the player on swap"
         ) }
     }!!
     private val SWAP_HEALTH = TrackedValue.create(false, "health") {
@@ -120,9 +124,9 @@ object DeathSwapConfig {
         WARN_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         MIN_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         MAX_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
-        SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
         RESISTANCE_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_MOB_AGGRESSION.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
@@ -146,14 +150,14 @@ object DeathSwapConfig {
             MAX_SWAP_TIME.setValue(value, true)
         }
 
+    val swapTime: IntRange
+        get() = minSwapTime..maxSwapTime
+
     var warnTime: Int
         get() = WARN_TIME.value()
         set(value) {
             WARN_TIME.setValue(value, true)
         }
-
-    val swapTime: IntRange
-        get() = minSwapTime..maxSwapTime
 
     var minSpreadDistance: Int
         get() = MIN_SPREAD_DISTANCE.value()
@@ -170,12 +174,6 @@ object DeathSwapConfig {
     val spreadDistance: IntRange
         get() = minSpreadDistance..maxSpreadDistance
 
-    var swapMount: Boolean
-        get() = SWAP_MOUNT.value()
-        set(value) {
-            SWAP_MOUNT.setValue(value, true)
-        }
-
     var dimension: RegistryKey<World>
         get() = RegistryKey.of(Registry.WORLD_KEY, Identifier(DIMENSION.value()))
         set(value) {
@@ -187,11 +185,19 @@ object DeathSwapConfig {
         set(value) {
             RESISTANCE_TIME.setValue(value, true)
         }
+
+    var swapMount: Boolean
+        get() = SWAP_MOUNT.value()
+        set(value) {
+            SWAP_MOUNT.setValue(value, true)
+        }
+
     var swapHealth: Boolean
         get() = SWAP_HEALTH.value()
         set(value) {
             SWAP_HEALTH.setValue(value, true)
         }
+
     var swapHunger: Boolean
         get() = SWAP_HUNGER.value()
         set(value) {

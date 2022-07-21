@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MobEntity.class)
 public class MixinMobEntity {
-
     @Inject(at = @At("HEAD"), method = "checkDespawn", cancellable = true)
     private void onCheckDespawn(CallbackInfo ci) {
         if (DeathSwapStateManager.INSTANCE.getState() == GameState.TELEPORTING) {

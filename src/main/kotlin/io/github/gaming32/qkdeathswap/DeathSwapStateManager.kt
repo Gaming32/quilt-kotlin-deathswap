@@ -121,7 +121,7 @@ object DeathSwapStateManager {
     fun tick(server: MinecraftServer) {
         timeSinceLastSwap++
         if (state == GameState.STARTING) {
-            if (playerStartLocation.stream().allMatch { it.tick() }) {
+            if (playerStartLocation.all { it.tick() }) {
                 playerStartLocation.forEach { loc ->
                     resetPlayer(loc.player, includeInventory = true)
                     loc.player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, DeathSwapConfig.resistanceTime, 255, true, false, true))

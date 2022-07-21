@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerPlayNetworkHandler.class)
 public class MixinServerPlayNetworkHandler {
-
     @Shadow public ServerPlayerEntity player;
 
     @Inject(at = @At("RETURN"), method = "onDisconnected")
