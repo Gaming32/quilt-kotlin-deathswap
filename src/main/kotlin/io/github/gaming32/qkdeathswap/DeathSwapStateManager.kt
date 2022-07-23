@@ -12,6 +12,7 @@ import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
+import java.text.DecimalFormat
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -21,6 +22,8 @@ import kotlin.random.nextInt
 enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
 }
+
+private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
 
 object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
@@ -171,7 +174,8 @@ object DeathSwapStateManager {
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
         }
-        if (timeSinceLastSwap % 20 == 0) {
+        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime
+        if (withinWarnTime || timeSinceLastSwap % 20 == 0) {
             val text = Text.literal(
                 "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
             ).formatted(
@@ -179,8 +183,14 @@ object DeathSwapStateManager {
             )
             server.allPlayers.forEach { player ->
                 val text2 = text.copy()
-                if (player.isSpectator || timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime) {
+                if (player.isSpectator) {
                     text2.append(Text.literal("/${ticksToMinutesSeconds(timeToSwap)}").formatted(Formatting.YELLOW))
+                }
+                if (withinWarnTime) {
+                    text2.append(
+                        Text.literal(" ${ONE_DIGIT_FORMAT.format((timeToSwap - timeSinceLastSwap) / 20.0)} seconds")
+                            .formatted(Formatting.DARK_RED)
+                    )
                 }
                 player.sendMessage(text2, true)
             }
