@@ -111,7 +111,11 @@ object DeathSwapStateManager {
             exhaustion = 0f
         }
         if (includeInventory) {
-            player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
+            player.server.commandSource
+            player.server.commandManager.dispatcher.execute(
+                "advancement revoke ${player.entityName} everything",
+                player.server.commandSource
+            )
             player.setExperienceLevel(0)
             player.setExperiencePoints(0)
             player.inventory.clear()

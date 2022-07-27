@@ -3,7 +3,6 @@ package io.github.gaming32.qkdeathswap
 import com.mojang.brigadier.arguments.ArgumentType
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
-import net.minecraft.network.MessageType
 import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
@@ -19,7 +18,6 @@ import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
-import org.quiltmc.qkl.wrapper.qsl.networking.onPlayDisconnect
 import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
 import org.quiltmc.qkl.wrapper.qsl.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
@@ -117,7 +115,7 @@ object DeathSwapMod : ModInitializer {
                         val text = player.damageTracker.deathMessage
                         val abstractTeam = player.scoreboardTeam
                         if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                            player.server.playerManager.broadcastSystemMessage(text, MessageType.SYSTEM)
+                            player.server.broadcast(text)
                         } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
                             player.server.playerManager.sendSystemMessageToTeam(player, text)
                         } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
