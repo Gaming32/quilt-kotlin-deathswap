@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import com.mojang.brigadier.arguments.ArgumentType
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.entity.player.PlayerEntity
@@ -21,6 +22,7 @@ import net.minecraft.screen.ScreenHandlerType
 import net.minecraft.text.Text
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
+import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
@@ -272,6 +274,40 @@ object DeathSwapMod : ModInitializer {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
                 }
             }
+
+            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
+                if (DeathSwapStateManager.hasBegun()) {
+                    if (origin.method_44013() == DimensionTypes.THE_END) {
+                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
+                            // Teleport player so they arn't at spawn in the overworld
+                            val holder = DeathSwapStateManager.livingPlayers[player.uuid];
+                            if (holder != null) {
+                                val loc = holder.startLocation
+                                if (holder.startLocation.world == destination) {
+                                    player.teleport(
+                                        loc.world,
+                                        loc.x.toDouble(),
+                                        loc.y.toDouble(),
+                                        loc.z.toDouble(),
+                                        0f, 0f
+                                    )
+                                } else {
+                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
+                                    while (!loc.tick()) {}
+                                    player.teleport(
+                                        newLoc.world,
+                                        newLoc.x.toDouble(),
+                                        newLoc.y.toDouble(),
+                                        newLoc.z.toDouble(),
+                                        0f, 0f
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
 
         LOGGER.info("$MOD_ID initialized!")

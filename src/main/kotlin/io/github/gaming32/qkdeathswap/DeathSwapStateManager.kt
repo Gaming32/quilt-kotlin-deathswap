@@ -26,7 +26,7 @@ enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
 }
 
-class PlayerHolder(serverPlayerEntity: ServerPlayerEntity) {
+class PlayerHolder(serverPlayerEntity: ServerPlayerEntity, val startLocation: PlayerStartLocation) {
     var displayName: Text = serverPlayerEntity.displayName
         get() {
             field = player?.displayName ?: field
@@ -46,8 +46,6 @@ object DeathSwapStateManager {
     var timeSinceLastSwap = 0
     var timeToSwap = 0
 
-    private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
-
     val livingPlayers = mutableMapOf<UUID, PlayerHolder>()
 
     private val swapTargets = mutableSetOf<SwapForward>()
@@ -65,13 +63,15 @@ object DeathSwapStateManager {
         livingPlayers.clear()
         var playerAngle = Random.nextDouble(0.0, PI * 2)
         val playerAngleChange = PI * 2 / server.allPlayers.size
-        playerStartLocation.clear()
         server.allPlayers.forEach { player ->
-            livingPlayers[player.uuid] = PlayerHolder(player)
             val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
-            playerStartLocation.add(PlayerStartLocation(server.getWorld(DeathSwapConfig.dimension) ?: server.getWorld(World.OVERWORLD)!!, player, x, z))
+            livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
+                server.getWorld(DeathSwapConfig.dimension) ?: server.getWorld(World.OVERWORLD)!!,
+                x,
+                z
+            ))
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
@@ -149,17 +149,32 @@ object DeathSwapStateManager {
     fun tick(server: MinecraftServer) {
         timeSinceLastSwap++
         if (state == GameState.STARTING) {
-            if (playerStartLocation.all { it.tick() }) {
-                playerStartLocation.forEach { loc ->
-                    resetPlayer(loc.player, includeInventory = true)
-                    loc.player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, DeathSwapConfig.resistanceTime, 255, true, false, true))
-                    loc.player.teleport(
-                        loc.world,
-                        loc.x.toDouble(),
-                        loc.y.toDouble(),
-                        loc.z.toDouble(),
-                        0f, 0f
-                    )
+            if (livingPlayers.values.all { it.startLocation.tick() }) {
+                livingPlayers.forEach { entry ->
+                    val loc = entry.value.startLocation
+                    val entity = entry.value.player
+                    if (entity == null) {
+                        removePlayer(entry.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
+                    } else {
+                        resetPlayer(entity, includeInventory = true)
+                        entity.addStatusEffect(
+                            StatusEffectInstance(
+                                StatusEffects.RESISTANCE,
+                                DeathSwapConfig.resistanceTime,
+                                255,
+                                true,
+                                false,
+                                true
+                            )
+                        )
+                        entity.teleport(
+                            loc.world,
+                            loc.x.toDouble(),
+                            loc.y.toDouble(),
+                            loc.z.toDouble(),
+                            0f, 0f
+                        )
+                    }
                 }
                 timeSinceLastSwap = 0
                 state = GameState.STARTED

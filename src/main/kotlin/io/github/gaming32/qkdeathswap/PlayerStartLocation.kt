@@ -1,12 +1,11 @@
 package io.github.gaming32.qkdeathswap
 
-import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.math.BlockPos
 import kotlin.random.Random
 import kotlin.random.nextInt
 
-class PlayerStartLocation(val world: ServerWorld, val player: ServerPlayerEntity, var x: Int, var z: Int) {
+class PlayerStartLocation(val world: ServerWorld, var x: Int, var z: Int) {
     var y = 0
     private var ready = false
 
