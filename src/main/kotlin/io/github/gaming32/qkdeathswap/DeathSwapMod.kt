@@ -268,7 +268,7 @@ object DeathSwapMod : ModInitializer {
             }
 
             onPlayReady { packetSender, server ->
-                if (DeathSwapStateManager.hasBegun()) {
+                if (DeathSwapStateManager.hasBegun() && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
                 }
             }
