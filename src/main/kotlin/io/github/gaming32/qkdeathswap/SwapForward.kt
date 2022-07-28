@@ -65,7 +65,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         thisPlayer.teleport(pos)
     }
 
-    fun swap() {
+    fun swap(moreThanTwoPlayers: Boolean) {
         thisPlayer.velocity = Vec3d.ZERO
         thisPlayer.fallDistance = 0f
 
@@ -110,15 +110,17 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         }
 
         thisPlayer.sendMessage(
-            Text.literal("You were teleported to ")
+            Text.literal("You were teleported to ").formatted(Formatting.GRAY)
                 .append(nextPlayer.displayName.copy().formatted(Formatting.GREEN)),
             false
         )
-        nextPlayer.sendMessage(
-            thisPlayer.displayName.copy().formatted(Formatting.GREEN)
-                .append(Text.literal(" teleported to you").formatted(Formatting.WHITE)),
-            false
-        )
+        if (moreThanTwoPlayers) {
+            nextPlayer.sendMessage(
+                thisPlayer.displayName.copy().formatted(Formatting.GREEN)
+                    .append(Text.literal(" teleported to you").formatted(Formatting.GRAY)),
+                false
+            )
+        }
     }
 
     private fun swapMobAggression() {

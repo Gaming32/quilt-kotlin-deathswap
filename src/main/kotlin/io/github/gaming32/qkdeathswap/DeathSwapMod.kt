@@ -73,7 +73,7 @@ object DeathSwapMod : ModInitializer {
                     }
                     required(literal("stop")) {
                         execute {
-                            DeathSwapStateManager.endGame(source.server)
+                            DeathSwapStateManager.endGame(source.server, natural = false)
                             source.server.broadcast("Deathswap ended!")
                         }
                     }
@@ -232,11 +232,5 @@ object DeathSwapMod : ModInitializer {
         }
 
         LOGGER.info("$MOD_ID initialized!")
-    }
-
-    fun onPlayDoneDisconnecting(player: ServerPlayerEntity) {
-        if (DeathSwapStateManager.hasBegun()) {
-            DeathSwapStateManager.removePlayer(player, strikeLightning = false)
-        }
     }
 }

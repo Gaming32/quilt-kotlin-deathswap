@@ -13,6 +13,7 @@ import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import java.text.DecimalFormat
+import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -21,6 +22,20 @@ import kotlin.random.nextInt
 
 enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
+}
+
+class PlayerHolder(serverPlayerEntity: ServerPlayerEntity) {
+    var displayName: Text = serverPlayerEntity.displayName
+        get() {
+            field = getPlayer()?.displayName ?: field
+            return field
+        }
+    private val uuid: UUID = serverPlayerEntity.uuid
+    val server: MinecraftServer = serverPlayerEntity.server
+
+    fun getPlayer(): ServerPlayerEntity? {
+        return server.getPlayerManager().getPlayer(uuid)
+    }
 }
 
 private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
@@ -34,7 +49,7 @@ object DeathSwapStateManager {
 
     private val playerStartLocation = mutableSetOf<PlayerStartLocation>()
 
-    val livingPlayers = mutableSetOf<ServerPlayerEntity>()
+    val livingPlayers = mutableMapOf<UUID, PlayerHolder>()
 
     private val swapTargets = mutableSetOf<SwapForward>()
 
@@ -53,7 +68,7 @@ object DeathSwapStateManager {
         val playerAngleChange = PI * 2 / server.allPlayers.size
         playerStartLocation.clear()
         server.allPlayers.forEach { player ->
-            livingPlayers.add(player)
+            livingPlayers[player.uuid] = PlayerHolder(player)
             val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.toDouble(), DeathSwapConfig.maxSpreadDistance.toDouble())
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
@@ -68,27 +83,39 @@ object DeathSwapStateManager {
         timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
-    fun removePlayer(player: ServerPlayerEntity, strikeLightning: Boolean = true) {
-        if (strikeLightning) {
-            player.world.spawnEntity(
-                LightningEntity(
-                    EntityType.LIGHTNING_BOLT,
-                    player.world
-                ).apply { setCosmetic(true) })
-        }
-        resetPlayer(player, gamemode = GameMode.SPECTATOR)
-        livingPlayers.remove(player)
+    private fun removePlayer(player: UUID, reason: Text) {
+        val holder = livingPlayers.remove(player) ?: return
+        holder.server.broadcast(holder.displayName.copy().formatted(Formatting.GREEN).append(reason))
         if (livingPlayers.size < 2) {
-            player.server?.broadcast(
-                Text.literal("Game over! ")
-                    .append(livingPlayers.firstOrNull()?.displayName ?: Text.literal("Nobody"))
-                    .append(" won")
-            )
+            endGame(holder.server)
+        }
+    }
+
+    fun removePlayer(player: ServerPlayerEntity) {
+        player.world.spawnEntity(
+            LightningEntity(
+                EntityType.LIGHTNING_BOLT,
+                player.world
+            ).apply { setCosmetic(true) })
+        resetPlayer(player, gamemode = GameMode.SPECTATOR)
+        livingPlayers.remove(player.uuid)
+        if (livingPlayers.size < 2) {
             endGame(player.server!!)
         }
     }
 
-    fun endGame(server: MinecraftServer) {
+    fun endGame(server: MinecraftServer, natural: Boolean = true) {
+        if (natural) {
+            val name = livingPlayers.entries.firstOrNull()?.value?.displayName ?: Text.literal("Nobody")
+            name.copy().formatted(Formatting.GREEN)
+
+            server.broadcast(
+                Text.literal("Game over! ")
+                    .append(name)
+                    .append(" won")
+            )
+        }
+
         state = GameState.NOT_STARTED
         livingPlayers.clear()
         val destWorld = server.getWorld(World.OVERWORLD)!!
@@ -150,7 +177,7 @@ object DeathSwapStateManager {
 
         if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime) {
             for (player in swapTargets) {
-                player.swap()
+                player.swap(livingPlayers.size > 2)
             }
             swapTargets.clear()
             state = GameState.STARTED
@@ -159,7 +186,18 @@ object DeathSwapStateManager {
         if (timeSinceLastSwap > timeToSwap) {
             server.broadcast("Swapping!")
 
-            val shuffledPlayers = livingPlayers.shuffled()
+            val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
+                val entity = player.value.getPlayer()
+                if (entity == null) {
+                    removePlayer(player.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
+                }
+                entity
+            }
+
+            if (shuffledPlayers.size < 2) {
+                return
+            }
+
             swapTargets.clear()
 
             for (i in 1 until shuffledPlayers.size) {
