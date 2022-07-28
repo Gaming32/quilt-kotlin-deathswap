@@ -27,15 +27,14 @@ enum class GameState {
 class PlayerHolder(serverPlayerEntity: ServerPlayerEntity) {
     var displayName: Text = serverPlayerEntity.displayName
         get() {
-            field = getPlayer()?.displayName ?: field
+            field = player?.displayName ?: field
             return field
         }
     private val uuid: UUID = serverPlayerEntity.uuid
     val server: MinecraftServer = serverPlayerEntity.server
 
-    fun getPlayer(): ServerPlayerEntity? {
-        return server.getPlayerManager().getPlayer(uuid)
-    }
+    val player: ServerPlayerEntity?
+        get() = server.playerManager.getPlayer(uuid)
 }
 
 private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
@@ -187,7 +186,7 @@ object DeathSwapStateManager {
             server.broadcast("Swapping!")
 
             val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
-                val entity = player.value.getPlayer()
+                val entity = player.value.player
                 if (entity == null) {
                     removePlayer(player.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
                 }
