@@ -5,6 +5,9 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.player.PlayerInventory
+import net.minecraft.inventory.SimpleInventory
+import net.minecraft.item.ItemStack
+import net.minecraft.item.Items
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
@@ -14,8 +17,8 @@ import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
 import net.minecraft.screen.GenericContainerScreenHandler
 import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
+import net.minecraft.screen.ScreenHandlerType
 import net.minecraft.text.Text
-import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import org.quiltmc.config.api.values.TrackedValue
@@ -80,10 +83,10 @@ object DeathSwapMod : ModInitializer {
                         DeathSwapConfig.CONFIG.values().forEach { option ->
                             if (option.key() !in DeathSwapConfig.CONFIG_TYPES) return@forEach
                             required(literal(option.key().toString())) {
-                                execute {
-                                    source.sendFeedback(Text.literal("${option.key()} -> ${option.value()}"), false)
-                                }
                                 val valueType = DeathSwapConfig.CONFIG_TYPES[option.key()]!!
+                                execute {
+                                    source.sendFeedback(formatConfigOption(option, valueType), false)
+                                }
                                 required(argument("value", valueType.first as ArgumentType)) {
                                     @Suppress("UNCHECKED_CAST")
                                     execute {
@@ -97,8 +100,7 @@ object DeathSwapMod : ModInitializer {
                         execute {
                             val result = Text.literal("Here are all the current config values:")
                             DeathSwapConfig.CONFIG.values().forEach { option ->
-                                val name = option.key().toString()
-                                result.append("\n$name -> ${DeathSwapConfig.CONFIG.getValue(option.key()).value()}")
+                                result.append("\n").append(formatConfigOption(option))
                             }
                             source.sendFeedback(result, false)
                         }
@@ -118,11 +120,7 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val actualPlayer = player?.invoke(this)?.value() ?: source.player
                                     DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
-                                    NbtIo.writeCompressed(NbtCompound().apply {
-                                        put("Inventory", NbtList().apply {
-                                            actualPlayer.inventory.writeNbt(this)
-                                        })
-                                    }, defaultKitStoreLocation)
+                                    writeDefaultKit()
                                     source.sendFeedback(
                                         if (actualPlayer === source) {
                                             Text.literal("Set the default kit to your current inventory")
@@ -148,7 +146,56 @@ object DeathSwapMod : ModInitializer {
                                         playerInventory: PlayerInventory,
                                         playerEntity: PlayerEntity
                                     ): ScreenHandler {
-                                        val screenHandler = GenericContainerScreenHandler.createGeneric9x5(syncId, playerInventory)
+                                        val screenHandler = GenericContainerScreenHandler(
+                                            ScreenHandlerType.GENERIC_9X5,
+                                            syncId,
+                                            playerInventory,
+                                            object : SimpleInventory(9 * 5) {
+                                                override fun onClose(player: PlayerEntity) {
+                                                    val kit = DeathSwapConfig.defaultKit
+                                                    for (i in 0 until 4) {
+                                                        for (j in 0 until 9) {
+                                                            kit.setStack(
+                                                                i * 9 + j,
+                                                                getStack((4 - i) * 9 + j).copy()
+                                                            )
+                                                        }
+                                                    }
+                                                    for (i in 0 until 5) {
+                                                        kit.setStack(36 + i, getStack(i).copy())
+                                                    }
+                                                    writeDefaultKit()
+                                                }
+
+                                                var recursiveDirty = false
+                                                override fun markDirty() {
+                                                    if (recursiveDirty) return
+                                                    super.markDirty()
+                                                    recursiveDirty = true
+                                                    for (i in 5 until 9) {
+                                                        setStack(i, ItemStack(Items.BARRIER))
+                                                    }
+                                                    recursiveDirty = false
+                                                }
+
+                                                override fun removeStack(slot: Int): ItemStack =
+                                                    if (slot in 5 until 9) ItemStack.EMPTY
+                                                    else super.removeStack(slot)
+
+                                                override fun removeStack(slot: Int, amount: Int): ItemStack =
+                                                    if (slot in 5 until 9) ItemStack.EMPTY
+                                                    else super.removeStack(slot, amount)
+
+                                                override fun setStack(slot: Int, stack: ItemStack?) {
+                                                    if (stack?.item == Items.BARRIER) {
+                                                        super.setStack(slot, stack?.apply { count = 1 })
+                                                        return
+                                                    }
+                                                    if (slot !in 5 until 9) super.setStack(slot, stack)
+                                                }
+                                            },
+                                            5
+                                        )
                                         val kit = DeathSwapConfig.defaultKit
                                         for (i in 0 until 4) {
                                             for (j in 0 until 9) {
@@ -161,16 +208,13 @@ object DeathSwapMod : ModInitializer {
                                         for (i in 0 until 5) {
                                             screenHandler.inventory.setStack(i, kit.getStack(36 + i).copy())
                                         }
+                                        for (i in 5 until 9) {
+                                            screenHandler.inventory.setStack(i, ItemStack(Items.BARRIER))
+                                        }
                                         return screenHandler
                                     }
 
-                                    override fun getDisplayName(): Text {
-                                        return Text.literal("Default kit ")
-                                            .append(
-                                                Text.literal("(not editable)")
-                                                    .formatted(Formatting.GOLD)
-                                            )
-                                    }
+                                    override fun getDisplayName(): Text = Text.literal("Default kit")
                                 })
                             }
                         }
@@ -231,5 +275,13 @@ object DeathSwapMod : ModInitializer {
         }
 
         LOGGER.info("$MOD_ID initialized!")
+    }
+
+    private fun writeDefaultKit() {
+        NbtIo.writeCompressed(NbtCompound().apply {
+            put("Inventory", NbtList().apply {
+                DeathSwapConfig.defaultKit.writeNbt(this)
+            })
+        }, defaultKitStoreLocation)
     }
 }

@@ -1,9 +1,12 @@
 package io.github.gaming32.qkdeathswap
 
+import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import net.minecraft.command.argument.DimensionArgumentType
+import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.entity.player.PlayerInventory
+import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
@@ -12,6 +15,22 @@ import org.quiltmc.config.api.annotations.Comment
 import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.loader.api.config.QuiltConfig
+
+fun formatConfigOption(
+    option: TrackedValue<*>,
+    valueType: Pair<ArgumentType<out Comparable<*>>, Function1<*, Any>>? = null
+): Text {
+    val value = option.value()
+    val displayText = Text.literal("${option.key()} -> $value")
+    if (value is Int && (valueType ?: (DeathSwapConfig.CONFIG_TYPES[option.key()]!!)).first is TimeArgumentType) {
+        if (value % 20 == 0) {
+            displayText.append(" (${value / 20}s)")
+        } else {
+            displayText.append(" (${value / 20.0}s)")
+        }
+    }
+    return displayText
+}
 
 object DeathSwapConfig {
     private val MIN_SWAP_TIME = TrackedValue.create(20 * 60, "min")!!
@@ -127,13 +146,13 @@ object DeathSwapConfig {
     })!!
 
     val CONFIG_TYPES = mapOf(
-        MIN_SWAP_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
-        MAX_SWAP_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
-        WARN_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        MIN_SWAP_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
+        MAX_SWAP_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
+        WARN_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
         MIN_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         MAX_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
         DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
-        RESISTANCE_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
+        RESISTANCE_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
         SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
@@ -143,7 +162,7 @@ object DeathSwapConfig {
         SWAP_FROZEN.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_POTION_EFFECTS.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_INVENTORY.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        TELEPORT_LOAD_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
+        TELEPORT_LOAD_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v }
     )
 
     var minSwapTime: Int

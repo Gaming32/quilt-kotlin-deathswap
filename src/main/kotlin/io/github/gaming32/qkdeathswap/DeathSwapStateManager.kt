@@ -20,6 +20,8 @@ import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.random.nextInt
 
+private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
+
 enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
 }
@@ -30,14 +32,12 @@ class PlayerHolder(serverPlayerEntity: ServerPlayerEntity) {
             field = player?.displayName ?: field
             return field
         }
+        private set
     private val uuid: UUID = serverPlayerEntity.uuid
     val server: MinecraftServer = serverPlayerEntity.server
-
     val player: ServerPlayerEntity?
         get() = server.playerManager.getPlayer(uuid)
 }
-
-private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
 
 object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
@@ -106,11 +106,10 @@ object DeathSwapStateManager {
     fun endGame(server: MinecraftServer, natural: Boolean = true) {
         if (natural) {
             val name = livingPlayers.entries.firstOrNull()?.value?.displayName ?: Text.literal("Nobody")
-            name.copy().formatted(Formatting.GREEN)
 
             server.broadcast(
                 Text.literal("Game over! ")
-                    .append(name)
+                    .append(name.copy().formatted(Formatting.GREEN))
                     .append(" won")
             )
         }
@@ -175,9 +174,7 @@ object DeathSwapStateManager {
         }
 
         if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime) {
-            for (player in swapTargets) {
-                player.swap(livingPlayers.size > 2)
-            }
+            swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
             state = GameState.STARTED
         }
@@ -204,9 +201,7 @@ object DeathSwapStateManager {
             }
             swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
             state = GameState.TELEPORTING
-            swapTargets.forEach {
-                it.preSwap()
-            }
+            swapTargets.forEach { it.preSwap() }
 
             timeSinceLastSwap = 0
             timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
