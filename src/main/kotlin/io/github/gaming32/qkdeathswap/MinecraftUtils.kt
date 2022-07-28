@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.entity.player.PlayerInventory
 import net.minecraft.network.MessageType
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
@@ -49,4 +50,10 @@ fun ticksToMinutesSeconds(ticks: Int): String {
 
 fun WorldChunk.getTopBlock(x: Int, z: Int): Int {
     return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z)
+}
+
+fun PlayerInventory.copyFrom(other: PlayerInventory) {
+    for (i in 0 until size()) {
+        setStack(i, other.getStack(i).copy())
+    }
 }

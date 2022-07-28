@@ -114,7 +114,7 @@ object DeathSwapStateManager {
             player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
             player.setExperienceLevel(0)
             player.setExperiencePoints(0)
-            player.inventory.clear()
+            player.inventory.copyFrom(DeathSwapConfig.defaultKit)
             player.enderChestInventory.clear()
         }
         player.setSpawnPoint(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored

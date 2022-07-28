@@ -3,12 +3,14 @@ package io.github.gaming32.qkdeathswap
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import net.minecraft.command.argument.DimensionArgumentType
+import net.minecraft.entity.player.PlayerInventory
 import net.minecraft.util.Identifier
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.World
 import org.quiltmc.config.api.annotations.Comment
 import org.quiltmc.config.api.values.TrackedValue
+import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.loader.api.config.QuiltConfig
 
 object DeathSwapConfig {
@@ -84,8 +86,13 @@ object DeathSwapConfig {
             "Default 5 seconds"
         ) }
     }
+    private val ENABLE_DEBUG = TrackedValue.create(QuiltLoader.isDevelopmentEnvironment(), "enable_debug") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Enables the use of debug commands (/deathswap debug)"
+        ) }
+    }
 
-    val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
+    val CONFIG = QuiltConfig.create(MOD_ID, "deathswap", consumerApply {
         section("swap_time") { section ->
             section.metadata(Comment.TYPE) { comments -> comments.add(
                 "The amount of time between swaps, in ticks",
@@ -116,6 +123,7 @@ object DeathSwapConfig {
             section.field(SWAP_INVENTORY)
         }
         field(TELEPORT_LOAD_TIME)
+        field(ENABLE_DEBUG)
     })!!
 
     val CONFIG_TYPES = mapOf(
@@ -245,4 +253,9 @@ object DeathSwapConfig {
         set(value) {
             TELEPORT_LOAD_TIME.setValue(value, true)
         }
+
+    val enableDebug: Boolean
+        get() = ENABLE_DEBUG.value()
+
+    val defaultKit = PlayerInventory(null)
 }
