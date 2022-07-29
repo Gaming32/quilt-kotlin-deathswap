@@ -11,6 +11,8 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.World
+import org.quiltmc.config.api.Config
+import org.quiltmc.config.api.Config.Creator
 import org.quiltmc.config.api.annotations.Comment
 import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.QuiltLoader
@@ -111,39 +113,52 @@ object DeathSwapConfig {
         ) }
     }
 
-    val CONFIG = QuiltConfig.create(MOD_ID, "deathswap", consumerApply {
-        section("swap_time") { section ->
-            section.metadata(Comment.TYPE) { comments -> comments.add(
-                "The amount of time between swaps, in ticks",
-                "Default 1-3 minutes"
-            ) }
-            section.field(MIN_SWAP_TIME)
-            section.field(MAX_SWAP_TIME)
-            section.field(WARN_TIME)
+    var CONFIG: Config? = null
+        get() {
+            if (field == null) field = loadConfig()
+            return field
         }
-        section("spread_distance") { section ->
-            section.metadata(Comment.TYPE) { comments -> comments.add(
-                "The distance from 0,0 players are teleported to"
-            ) }
-            section.field(MIN_SPREAD_DISTANCE)
-            section.field(MAX_SPREAD_DISTANCE)
-        }
-        field(DIMENSION)
-        field(RESISTANCE_TIME)
-        section("swap_options") { section ->
-            section.field(SWAP_MOUNT)
-            section.field(SWAP_HEALTH)
-            section.field(SWAP_HUNGER)
-            section.field(SWAP_MOB_AGGRESSION)
-            section.field(SWAP_FIRE)
-            section.field(SWAP_AIR)
-            section.field(SWAP_FROZEN)
-            section.field(SWAP_POTION_EFFECTS)
-            section.field(SWAP_INVENTORY)
-        }
-        field(TELEPORT_LOAD_TIME)
-        field(ENABLE_DEBUG)
-    })!!
+        private set
+
+    fun loadConfig(fname: String = "deathswap"): Config {
+        return QuiltConfig.create(MOD_ID, fname, consumerApply {
+            section("swap_time") { section ->
+                section.metadata(Comment.TYPE) { comments -> comments.add(
+                    "The amount of time between swaps, in ticks",
+                    "Default 1-3 minutes"
+                ) }
+                section.field(MIN_SWAP_TIME)
+                section.field(MAX_SWAP_TIME)
+                section.field(WARN_TIME)
+            }
+            section("spread_distance") { section ->
+                section.metadata(Comment.TYPE) { comments -> comments.add(
+                    "The distance from 0,0 players are teleported to"
+                ) }
+                section.field(MIN_SPREAD_DISTANCE)
+                section.field(MAX_SPREAD_DISTANCE)
+            }
+            field(DIMENSION)
+            field(RESISTANCE_TIME)
+            section("swap_options") { section ->
+                section.field(SWAP_MOUNT)
+                section.field(SWAP_HEALTH)
+                section.field(SWAP_HUNGER)
+                section.field(SWAP_MOB_AGGRESSION)
+                section.field(SWAP_FIRE)
+                section.field(SWAP_AIR)
+                section.field(SWAP_FROZEN)
+                section.field(SWAP_POTION_EFFECTS)
+                section.field(SWAP_INVENTORY)
+            }
+            field(TELEPORT_LOAD_TIME)
+            field(ENABLE_DEBUG)
+        })!!
+    }
+
+    fun reloadConfig() {
+        CONFIG = null
+    }
 
     val CONFIG_TYPES = mapOf(
         MIN_SWAP_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },

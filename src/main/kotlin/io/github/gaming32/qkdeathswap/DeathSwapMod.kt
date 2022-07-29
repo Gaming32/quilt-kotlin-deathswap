@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.ArgumentType
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
+import net.minecraft.command.CommandSource
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.player.PlayerInventory
 import net.minecraft.inventory.SimpleInventory
@@ -29,6 +30,7 @@ import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.*
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.player
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.string
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.value
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
@@ -39,15 +41,18 @@ import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.listDirectoryEntries
 
 const val MOD_ID = "qkdeathswap"
 
 object DeathSwapMod : ModInitializer {
     @JvmField val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
-    val defaultKitStoreLocation: File = QuiltLoader.getConfigDir()
-        .resolve(MOD_ID)
-        .resolve("default_kit.dat")
-        .toFile()
+    val configDir: Path = QuiltLoader.getConfigDir().resolve(MOD_ID)
+    val presetsDir = configDir.resolve("presets")!!
+    private val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
 
     override fun onInitialize(mod: ModContainer) {
         if (defaultKitStoreLocation.exists()) {
@@ -56,6 +61,15 @@ object DeathSwapMod : ModInitializer {
                     .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
             )
         }
+
+        if (!configDir.exists()) {
+            configDir.toFile().mkdirs()
+        }
+
+        if (!presetsDir.exists()) {
+            presetsDir.toFile().mkdirs()
+        }
+
 
         registerEvents {
             onCommandRegistration { buildContext, environment ->
@@ -82,7 +96,7 @@ object DeathSwapMod : ModInitializer {
                         }
                     }
                     required(literal("config")) {
-                        DeathSwapConfig.CONFIG.values().forEach { option ->
+                        DeathSwapConfig.CONFIG!!.values().forEach { option ->
                             if (option.key() !in DeathSwapConfig.CONFIG_TYPES) return@forEach
                             required(literal(option.key().toString())) {
                                 val valueType = DeathSwapConfig.CONFIG_TYPES[option.key()]!!
@@ -101,10 +115,69 @@ object DeathSwapMod : ModInitializer {
                         }
                         execute {
                             val result = Text.literal("Here are all the current config values:")
-                            DeathSwapConfig.CONFIG.values().forEach { option ->
+                            DeathSwapConfig.CONFIG!!.values().forEach { option ->
                                 result.append("\n").append(formatConfigOption(option))
                             }
                             source.sendFeedback(result, false)
+                        }
+                    }
+                    required(literal("presets")) {
+                        required(literal("load")) {
+                            required(string("preset")) {  preset ->
+                                suggests { _, builder ->
+                                    CommandSource.suggestMatching(
+                                            listOf("classic", "the_end") +
+                                            presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        builder
+                                    )
+                                }
+                                execute {
+                                    // test if exists as real folder
+                                    val presetName = preset.invoke(this).value()
+                                    val presetDir = presetsDir.resolve(presetName)
+                                    if (presetDir.exists()) {
+
+                                        DeathSwapConfig.reloadConfig()
+                                    } else {
+                                        val resource = "/assets/${MOD_ID}/presets/${preset.invoke(this).value()}/"
+                                    }
+                                }
+                            }
+                        }
+                        required(literal("delete")) {
+                            required(string("preset")) {
+                                suggests { _, builder ->
+                                    CommandSource.suggestMatching(
+                                        listOf("classic", "the_end") +
+                                                presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        builder
+                                    )
+                                }
+                                execute {
+
+                                }
+                            }
+                        }
+                        required(literal("save")) {
+                            required(string("preset")) {
+                                execute {
+
+                                }
+                            }
+                        }
+                        required(literal("preview")) {
+                            required(string("preset")) {
+                                suggests { _, builder ->
+                                    CommandSource.suggestMatching(
+                                        listOf("classic", "the_end") +
+                                                presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        builder
+                                    )
+                                }
+                                execute {
+
+                                }
+                            }
                         }
                     }
                     required(literal("default_kit")) {
