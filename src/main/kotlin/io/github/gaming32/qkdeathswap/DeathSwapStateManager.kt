@@ -307,6 +307,9 @@ enum class DeathSwapGameMode(val allowDeath: Boolean, val limitedSwapCount: Bool
     ;
 
     private val id = name.lowercase()
+    private val presentableName = id.replaceFirstChar { it.uppercaseChar() }.replace('_', ' ')
 
     override fun asString() = id
+
+    override fun toString() = presentableName
 }
