@@ -20,7 +20,9 @@ import net.minecraft.screen.GenericContainerScreenHandler
 import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.ScreenHandlerType
+import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
@@ -41,6 +43,7 @@ import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -50,17 +53,16 @@ const val MOD_ID = "qkdeathswap"
 
 object DeathSwapMod : ModInitializer {
     @JvmField val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
+
     val configDir: Path = QuiltLoader.getConfigDir().resolve(MOD_ID)
-    val presetsDir = configDir.resolve("presets")!!
-    private val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
+    val configFile: Path = configDir.resolve("deathswap.toml")
+
+    val presetsDir = configDir.resolve("presets")
+
+    val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
 
     override fun onInitialize(mod: ModContainer) {
-        if (defaultKitStoreLocation.exists()) {
-            DeathSwapConfig.defaultKit.readNbt(
-                NbtIo.readCompressed(defaultKitStoreLocation)
-                    .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
-            )
-        }
+
 
         if (!configDir.exists()) {
             configDir.toFile().mkdirs()
@@ -72,7 +74,7 @@ object DeathSwapMod : ModInitializer {
 
 
         registerEvents {
-            onCommandRegistration { buildContext, environment ->
+            onCommandRegistration { _, _ ->
                 register("deathswap") {
                     requires { it.hasPermissionLevel(1) }
                     required(literal("start")) {
@@ -96,86 +98,102 @@ object DeathSwapMod : ModInitializer {
                         }
                     }
                     required(literal("config")) {
-                        DeathSwapConfig.CONFIG!!.values().forEach { option ->
-                            if (option.key() !in DeathSwapConfig.CONFIG_TYPES) return@forEach
-                            required(literal(option.key().toString())) {
-                                val valueType = DeathSwapConfig.CONFIG_TYPES[option.key()]!!
-                                execute {
-                                    source.sendFeedback(formatConfigOption(option, valueType), false)
-                                }
-                                required(argument("value", valueType.first as ArgumentType)) {
-                                    @Suppress("UNCHECKED_CAST")
-                                    execute {
-                                        val newValue = (valueType.second as (Any) -> Any)(getArgument("value", Any::class.java))
-                                        (option as TrackedValue<Any>).setValue(newValue, true)
-                                        source.sendFeedback(Text.literal("Successfully set ${option.key()} to $newValue"), true)
-                                    }
-                                }
-                            }
-                        }
-                        execute {
-                            val result = Text.literal("Here are all the current config values:")
-                            DeathSwapConfig.CONFIG!!.values().forEach { option ->
-                                result.append("\n").append(formatConfigOption(option))
-                            }
-                            source.sendFeedback(result, false)
-                        }
+                        DeathSwapConfig.INSTANCE!!.buildArguments(this)
                     }
                     required(literal("presets")) {
                         required(literal("load")) {
-                            required(string("preset")) {  preset ->
+                            required(string("preset")) { presetAccess ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
-                                            listOf("classic", "the_end") +
-                                            presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        Presets.list(),
                                         builder
                                     )
                                 }
                                 execute {
-                                    // test if exists as real folder
-                                    val presetName = preset.invoke(this).value()
-                                    val presetDir = presetsDir.resolve(presetName)
-                                    if (presetDir.exists()) {
-
-                                        DeathSwapConfig.reloadConfig()
+                                    val preset = presetAccess.invoke(this).value()
+                                    if (Presets.load(preset)) {
+                                        DeathSwapConfig.resetInstance()
+                                        source.sendFeedback(Text.literal("Successfully loaded preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
                                     } else {
-                                        val resource = "/assets/${MOD_ID}/presets/${preset.invoke(this).value()}/"
+                                        source.sendFeedback(Text.literal("Failed to load preset ").append(Text.literal(preset).formatted(Formatting.RED)), false)
                                     }
                                 }
                             }
                         }
                         required(literal("delete")) {
-                            required(string("preset")) {
+                            required(string("preset")) { presetAccess ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
-                                        listOf("classic", "the_end") +
-                                                presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        Presets.list(),
                                         builder
                                     )
                                 }
                                 execute {
-
+                                    val preset = presetAccess.invoke(this).value()
+                                    if (Presets.delete(preset)) {
+                                        source.sendFeedback(Text.literal("Successfully deleted preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
+                                    } else {
+                                        if (preset in Presets.builtin) {
+                                            source.sendFeedback(Text.literal("Cannot delete builtin preset ").append(Text.literal(preset).formatted(Formatting.RED)), true)
+                                        } else {
+                                            source.sendFeedback(Text.literal("Failed to delete preset ").append(Text.literal(preset).formatted(Formatting.RED)).append(Text.literal(". does it exist?")), false)
+                                        }
+                                    }
                                 }
                             }
                         }
                         required(literal("save")) {
-                            required(string("preset")) {
+                            required(string("preset")) { presetAccess ->
                                 execute {
-
+                                    val preset = presetAccess.invoke(this).value()
+                                    try {
+                                        Presets.save(preset)
+                                        source.sendFeedback(
+                                            Text.literal("Successfully saved preset ")
+                                                .append(Text.literal(preset).formatted(Formatting.GREEN)), true
+                                        )
+                                    } catch (e: IOException) {
+                                        source.sendFeedback(
+                                            Text.literal("Failed to save preset ")
+                                                .append(Text.literal(preset).formatted(Formatting.RED))
+                                                .append(Text.literal(". ").append(Text.literal(e.message).formatted(Formatting.RED))), false
+                                        )
+                                    }
                                 }
                             }
                         }
                         required(literal("preview")) {
-                            required(string("preset")) {
+                            required(string("preset")) { presetAccess ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
-                                        listOf("classic", "the_end") +
-                                                presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() },
+                                        Presets.list(),
                                         builder
                                     )
                                 }
-                                execute {
-
+                                optional(literal("kit")) { kitAccess ->
+                                    execute {
+                                        val preset = presetAccess.invoke(this).value()
+                                        if (kitAccess != null) {
+                                            val kit = Presets.previewKit(preset)
+                                            if (kit != null) {
+                                                viewKit(source.player, kit)
+                                            } else {
+                                                source.sendFeedback(Text.literal("No kit found for preset ").append(Text.literal(preset).formatted(Formatting.RED)).append(Text.literal(", or preset doesn't exist.")), false)
+                                            }
+                                        } else {
+                                            val values = Presets.preview(preset)
+                                            if (values != null) {
+                                                source.sendFeedback(
+                                                    Text.literal("Previewing preset ")
+                                                        .append(Text.literal(preset).formatted(Formatting.GREEN))
+                                                        .append(Text.literal(":")), true
+                                                )
+                                                source.sendFeedback(values, false)
+                                            } else {
+                                                source.sendFeedback(Text.literal("No preset found for ").append(Text.literal(preset).formatted(Formatting.RED)), false)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -183,7 +201,7 @@ object DeathSwapMod : ModInitializer {
                     required(literal("default_kit")) {
                         required(literal("clear")) {
                             execute {
-                                DeathSwapConfig.defaultKit.clear()
+                                DeathSwapConfig.INSTANCE!!.defaultKit?.clear()
                                 NbtIo.writeCompressed(NbtCompound().apply {
                                     put("Inventory", NbtList())
                                 }, defaultKitStoreLocation)
@@ -194,7 +212,7 @@ object DeathSwapMod : ModInitializer {
                             optional(player("player")) { player ->
                                 execute {
                                     val actualPlayer = player?.invoke(this)?.value() ?: source.player
-                                    DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
+                                    DeathSwapConfig.INSTANCE!!.defaultKit?.copyFrom(actualPlayer.inventory)
                                     writeDefaultKit()
                                     source.sendFeedback(
                                         if (actualPlayer === source) {
@@ -210,91 +228,16 @@ object DeathSwapMod : ModInitializer {
                         }
                         required(literal("load")) {
                             execute {
-                                source.player.inventory.copyFrom(DeathSwapConfig.defaultKit)
+                                source.player.inventory.copyFrom(DeathSwapConfig.INSTANCE!!.defaultKit!!)
                             }
                         }
                         required(literal("view")) {
                             execute {
-                                source.player.openHandledScreen(object : NamedScreenHandlerFactory {
-                                    override fun createMenu(
-                                        syncId: Int,
-                                        playerInventory: PlayerInventory,
-                                        playerEntity: PlayerEntity
-                                    ): ScreenHandler {
-                                        val screenHandler = GenericContainerScreenHandler(
-                                            ScreenHandlerType.GENERIC_9X5,
-                                            syncId,
-                                            playerInventory,
-                                            object : SimpleInventory(9 * 5) {
-                                                override fun onClose(player: PlayerEntity) {
-                                                    val kit = DeathSwapConfig.defaultKit
-                                                    for (i in 0 until 4) {
-                                                        for (j in 0 until 9) {
-                                                            kit.setStack(
-                                                                i * 9 + j,
-                                                                getStack((4 - i) * 9 + j).copy()
-                                                            )
-                                                        }
-                                                    }
-                                                    for (i in 0 until 5) {
-                                                        kit.setStack(36 + i, getStack(i).copy())
-                                                    }
-                                                    writeDefaultKit()
-                                                }
-
-                                                var recursiveDirty = false
-                                                override fun markDirty() {
-                                                    if (recursiveDirty) return
-                                                    super.markDirty()
-                                                    recursiveDirty = true
-                                                    for (i in 5 until 9) {
-                                                        setStack(i, ItemStack(Items.BARRIER))
-                                                    }
-                                                    recursiveDirty = false
-                                                }
-
-                                                override fun removeStack(slot: Int): ItemStack =
-                                                    if (slot in 5 until 9) ItemStack.EMPTY
-                                                    else super.removeStack(slot)
-
-                                                override fun removeStack(slot: Int, amount: Int): ItemStack =
-                                                    if (slot in 5 until 9) ItemStack.EMPTY
-                                                    else super.removeStack(slot, amount)
-
-                                                override fun setStack(slot: Int, stack: ItemStack?) {
-                                                    if (stack?.item == Items.BARRIER) {
-                                                        super.setStack(slot, stack?.apply { count = 1 })
-                                                        return
-                                                    }
-                                                    if (slot !in 5 until 9) super.setStack(slot, stack)
-                                                }
-                                            },
-                                            5
-                                        )
-                                        val kit = DeathSwapConfig.defaultKit
-                                        for (i in 0 until 4) {
-                                            for (j in 0 until 9) {
-                                                screenHandler.inventory.setStack(
-                                                    (4 - i) * 9 + j,
-                                                    kit.getStack(i * 9 + j).copy()
-                                                )
-                                            }
-                                        }
-                                        for (i in 0 until 5) {
-                                            screenHandler.inventory.setStack(i, kit.getStack(36 + i).copy())
-                                        }
-                                        for (i in 5 until 9) {
-                                            screenHandler.inventory.setStack(i, ItemStack(Items.BARRIER))
-                                        }
-                                        return screenHandler
-                                    }
-
-                                    override fun getDisplayName(): Text = Text.literal("Default kit")
-                                })
+                                viewKit(source.player, DeathSwapConfig.INSTANCE!!.defaultKit!!)
                             }
                         }
                     }
-                    if (DeathSwapConfig.enableDebug) {
+                    if (DeathSwapConfig.INSTANCE!!.enableDebug.value == true) {
                         required(literal("debug")) {
                             required(literal("swap_now")) {
                                 execute {
@@ -313,7 +256,7 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            ALLOW_DEATH.register { player, source, amount ->
+            ALLOW_DEATH.register { player, _, _ ->
                 if (!DeathSwapStateManager.hasBegun()) {
                     return@register true
                 }
@@ -342,7 +285,7 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            onPlayReady { packetSender, server ->
+            onPlayReady { _, _ ->
                 if (DeathSwapStateManager.hasBegun() && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
                 }
@@ -353,7 +296,7 @@ object DeathSwapMod : ModInitializer {
                     if (origin.method_44013() == DimensionTypes.THE_END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                             // Teleport player so they arn't at spawn in the overworld
-                            val holder = DeathSwapStateManager.livingPlayers[player.uuid];
+                            val holder = DeathSwapStateManager.livingPlayers[player.uuid]
                             if (holder != null) {
                                 val loc = holder.startLocation
                                 if (holder.startLocation.world == destination) {
@@ -386,10 +329,87 @@ object DeathSwapMod : ModInitializer {
         LOGGER.info("$MOD_ID initialized!")
     }
 
+    fun viewKit(player: ServerPlayerEntity, kit: PlayerInventory) {
+        player.openHandledScreen(object : NamedScreenHandlerFactory {
+            override fun createMenu(
+                syncId: Int,
+                playerInventory: PlayerInventory,
+                playerEntity: PlayerEntity
+            ): ScreenHandler {
+                val screenHandler = GenericContainerScreenHandler(
+                    ScreenHandlerType.GENERIC_9X5,
+                    syncId,
+                    playerInventory,
+                    object : SimpleInventory(9 * 5) {
+                        override fun onClose(player: PlayerEntity) {
+                            for (i in 0 until 4) {
+                                for (j in 0 until 9) {
+                                    kit.setStack(
+                                        i * 9 + j,
+                                        getStack((4 - i) * 9 + j).copy()
+                                    )
+                                }
+                            }
+                            for (i in 0 until 5) {
+                                kit.setStack(36 + i, getStack(i).copy())
+                            }
+                            writeDefaultKit()
+                        }
+
+                        var recursiveDirty = false
+                        override fun markDirty() {
+                            if (recursiveDirty) return
+                            super.markDirty()
+                            recursiveDirty = true
+                            for (i in 5 until 9) {
+                                setStack(i, ItemStack(Items.BARRIER))
+                            }
+                            recursiveDirty = false
+                        }
+
+                        override fun removeStack(slot: Int): ItemStack =
+                            if (slot in 5 until 9) ItemStack.EMPTY
+                            else super.removeStack(slot)
+
+                        override fun removeStack(slot: Int, amount: Int): ItemStack =
+                            if (slot in 5 until 9) ItemStack.EMPTY
+                            else super.removeStack(slot, amount)
+
+                        override fun setStack(slot: Int, stack: ItemStack?) {
+                            if (stack?.item == Items.BARRIER) {
+                                super.setStack(slot, stack?.apply { count = 1 })
+                                return
+                            }
+                            if (slot !in 5 until 9) super.setStack(slot, stack)
+                        }
+                    },
+                    5
+                )
+                for (i in 0 until 4) {
+                    for (j in 0 until 9) {
+                        screenHandler.inventory.setStack(
+                            (4 - i) * 9 + j,
+                            kit.getStack(i * 9 + j).copy()
+                        )
+                    }
+                }
+                for (i in 0 until 5) {
+                    screenHandler.inventory.setStack(i, kit.getStack(36 + i).copy())
+                }
+                for (i in 5 until 9) {
+                    screenHandler.inventory.setStack(i, ItemStack(Items.BARRIER))
+                }
+                return screenHandler
+            }
+
+            override fun getDisplayName(): Text = Text.literal("Default kit")
+        })
+    }
+
     private fun writeDefaultKit() {
         NbtIo.writeCompressed(NbtCompound().apply {
             put("Inventory", NbtList().apply {
-                DeathSwapConfig.defaultKit.writeNbt(this)
+                DeathSwapConfig.INSTANCE!!.defaultKit?.writeNbt(this)
             })
         }, defaultKitStoreLocation)
     }
