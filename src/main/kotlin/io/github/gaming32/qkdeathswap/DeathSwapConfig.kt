@@ -40,47 +40,31 @@ open class DeathSwapConfig(
                 StandardOpenOption.TRUNCATE_EXISTING
             )
         }
-    ) {
-        private fun loadInstance(): DeathSwapConfig {
-            return if (DeathSwapMod.configFile.exists()) {
-                println("Loading config from file")
-                DeathSwapMod.configFile.inputStream().use {
-                    println("Parsing config")
-                    DeathSwapConfig(it)
-                }
-            } else {
-                DeathSwapConfig(TomlFormat.newConfig()) {
-                    DeathSwapMod.configFile.outputStream(
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING
-                    )
-                }
-            }
-        }
-    }
+    )
+
     constructor(input: InputStream, output: () -> OutputStream? = { null }) : this(TomlParser().parse(input), output)
 
-    private val swapTimeGroup = register(
+    private val swapTimeGroup = group(
         "swap_time",
         "The amount of time between swaps, in ticks\n" +
                 "Default 1-3 minutes"
     )
 
-    val minSwapTime = swapTimeGroup.register(
+    val minSwapTime = swapTimeGroup.setting(
         "min",
         20 * 60,
         TimeArgumentType.time(),
         "The minimum time between swaps"
     )
 
-    val maxSwapTime = swapTimeGroup.register(
+    val maxSwapTime = swapTimeGroup.setting(
         "max",
         20 * 180,
         TimeArgumentType.time(),
         "The maximum time between swaps"
     )
 
-    val warnTime = swapTimeGroup.register(
+    val warnTime = swapTimeGroup.setting(
         "warn",
         0,
         TimeArgumentType.time(),
@@ -94,19 +78,19 @@ open class DeathSwapConfig(
             maxSwapTime.value = range.last
         }
 
-    private val spreadDistanceGroup = register(
+    private val spreadDistanceGroup = group(
         "spread_distance",
         "The distance from 0,0 players are teleported to"
     )
 
-    val minSpreadDistance = spreadDistanceGroup.register(
+    val minSpreadDistance = spreadDistanceGroup.setting(
         "min",
         10_000,
         IntegerArgumentType.integer(0),
         "The minimum distance players are teleported to"
     )
 
-    val maxSpreadDistance = spreadDistanceGroup.register(
+    val maxSpreadDistance = spreadDistanceGroup.setting(
         "max",
         20_000,
         IntegerArgumentType.integer(0),
@@ -120,18 +104,20 @@ open class DeathSwapConfig(
             maxSpreadDistance.value = range.last
         }
 
-    val dimension = register("dimension",
+    val dimension = setting("dimension",
         World.OVERWORLD.value,
         DimensionArgumentType.dimension(),
         "The dimension players are teleported to",
         serializer = { it.toString() },
         deserializer = { (it as? String)?.let(::Identifier) },
-        brigadierFilter = { source, value -> source.worldKeys.any {
-            it.value == value
-        } }
+        brigadierFilter = { source, value ->
+            source.worldKeys.any {
+                it.value == value
+            }
+        }
     )
 
-    val resistanceTime = register(
+    val resistanceTime = setting(
         "resistance_time",
         20 * 15,
         TimeArgumentType.time(),
@@ -139,67 +125,67 @@ open class DeathSwapConfig(
                 "Default 15 seconds"
     )
 
-    private val swapOptionsGroup = register(
+    private val swapOptionsGroup = group(
         "swap_options",
         "Options for modifiers on the swap"
     )
 
-    val swapMount = swapOptionsGroup.register(
+    val swapMount = swapOptionsGroup.setting(
         "mount",
         true,
         BoolArgumentType.bool()
     )
 
 
-    val swapHealth = swapOptionsGroup.register(
+    val swapHealth = swapOptionsGroup.setting(
         "health",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapMobAggression = swapOptionsGroup.register(
+    val swapMobAggression = swapOptionsGroup.setting(
         "mob_aggression",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapHunger = swapOptionsGroup.register(
+    val swapHunger = swapOptionsGroup.setting(
         "hunger",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapFire = swapOptionsGroup.register(
+    val swapFire = swapOptionsGroup.setting(
         "fire",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapAir = swapOptionsGroup.register(
+    val swapAir = swapOptionsGroup.setting(
         "air",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapFrozen = swapOptionsGroup.register(
+    val swapFrozen = swapOptionsGroup.setting(
         "frozen",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapPotionEffects = swapOptionsGroup.register(
+    val swapPotionEffects = swapOptionsGroup.setting(
         "potion_effects",
         false,
         BoolArgumentType.bool()
     )
 
-    val swapInventory = swapOptionsGroup.register(
+    val swapInventory = swapOptionsGroup.setting(
         "inventory",
         false,
         BoolArgumentType.bool()
     )
 
-    val teleportLoadTime = register(
+    val teleportLoadTime = setting(
         "teleport_load_time",
         20 * 5,
         TimeArgumentType.time(),
@@ -207,7 +193,7 @@ open class DeathSwapConfig(
                 "Default 5 seconds"
     )
 
-    val enableDebug = register<Boolean, Unit>(
+    val enableDebug = setting<Boolean, Unit>(
         "enable_debug",
         false,
         null

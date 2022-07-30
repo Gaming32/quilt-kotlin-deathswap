@@ -6,6 +6,7 @@ import io.github.gaming32.qkdeathswap.consumerApply
 import net.minecraft.command.CommandSource
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import org.jetbrains.annotations.ApiStatus
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlWriter
@@ -19,6 +20,7 @@ import java.io.OutputStream
 /**
  * @author Wagyourtail
  */
+@Suppress("UNCHECKED_CAST", "UNUSED")
 open class BetterConfig<T : BetterConfig<T>>(
     private val configToml: CommentedConfig,
     private val saveStreamer: () -> OutputStream?
@@ -45,9 +47,10 @@ open class BetterConfig<T : BetterConfig<T>>(
     }
 
     @ApiStatus.Internal
+    @Suppress("LeakingThis")
     val emptyGroup = ConfigGroup(this, null, null, null)
 
-    inline fun <reified T : Any, reified U : Any> register(
+    inline fun <reified T : Any, reified U : Any> setting(
         name: String,
         default: T?,
         brigadierType: ArgumentType<U>?,
@@ -56,7 +59,7 @@ open class BetterConfig<T : BetterConfig<T>>(
         noinline serializer: (T?) -> Any? = { it },
         noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
         noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-        noinline brigadierFilter: (CommandSource, U) -> Boolean = { source, value -> true }
+        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true }
     ): ConfigItem<T, U> {
         val configItem = ConfigItem(
             this,
@@ -70,12 +73,12 @@ open class BetterConfig<T : BetterConfig<T>>(
             brigadierType,
             brigadierDeserializer,
             brigadierFilter
-        );
+        )
         configItems[configItem.key] = configItem as ConfigItem<Any, Any>
         return configItem
     }
 
-    fun register(group: String, comment: String? = null): ConfigGroup {
+    fun group(group: String, comment: String? = null): ConfigGroup {
         val configGroup = ConfigGroup(this, group, emptyGroup, comment)
         configGroups.add(configGroup)
         return configGroup
@@ -88,7 +91,7 @@ open class BetterConfig<T : BetterConfig<T>>(
         val comment: String?
     ) {
 
-        inline fun <reified T : Any, reified U : Any> register(
+        inline fun <reified T : Any, reified U : Any> setting(
             name: String,
             default: T,
             brigadierType: ArgumentType<U>?,
@@ -97,7 +100,7 @@ open class BetterConfig<T : BetterConfig<T>>(
             noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
             noinline serializer: (T?) -> Any? = { it },
             noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
-            noinline brigadierFilter: (CommandSource, U) -> Boolean = { source, value -> true }
+            noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true }
         ): ConfigItem<T, U> {
             val configItem = ConfigItem(
                 config,
@@ -111,12 +114,12 @@ open class BetterConfig<T : BetterConfig<T>>(
                 brigadierType,
                 brigadierDeserializer,
                 brigadierFilter
-            );
+            )
             config.configItems[configItem.key] = configItem as ConfigItem<Any, Any>
             return configItem
         }
 
-        fun register(group: String, comment: String? = null): ConfigGroup {
+        fun group(group: String, comment: String? = null): ConfigGroup {
             val configGroup = ConfigGroup(config, group, parent, comment)
             config.configGroups.add(configGroup)
             return configGroup
@@ -136,13 +139,15 @@ open class BetterConfig<T : BetterConfig<T>>(
     }
 
     class ConfigItem<T : Any, U : Any>(
-        val config: BetterConfig<*>,
+        private val config: BetterConfig<*>,
 
         val name: String,
         val group: ConfigGroup,
         var comment: String?,
         val textValue: (T?) -> Text,
 
+
+        @Suppress("MemberVisibilityCanBePrivate")
         val default: T?,
 
         val serializer: (T) -> Any?,
@@ -199,7 +204,9 @@ open class BetterConfig<T : BetterConfig<T>>(
                                 )
                                 if (!configItem.brigadierFilter(source, newValue)) {
                                     source.sendFeedback(
-                                        Text.literal(newValue.toString()).append("is not a valid value for")
+                                        Text.literal("")
+                                            .append(Text.literal(newValue.toString()).formatted(Formatting.RED))
+                                            .append(" is not a valid value for")
                                             .append(configItem.key),
                                         false
                                     )
