@@ -78,12 +78,17 @@ object DeathSwapConfig {
             "Whether players will swap their inventory"
         ) }
     }!!
+    private val ENABLE_QUICK_SWAP = TrackedValue.create(true, "enable_quick_swap") { option ->
+        option.metadata(Comment.TYPE) { comments -> comments.add(
+            "Whether quick swaps are enabled"
+        ) }
+    }!!
     private val TELEPORT_LOAD_TIME = TrackedValue.create(20 * 5, "teleport_load_time") { option ->
         option.metadata(Comment.TYPE) { comments -> comments.add(
             "The number of ticks it takes for the player to load after teleporting",
             "Default 5 seconds"
         ) }
-    }
+    }!!
 
     val CONFIG = QuiltConfig.create("qkdeathswap", "deathswap", consumerApply {
         section("swap_time") { section ->
@@ -114,6 +119,7 @@ object DeathSwapConfig {
             section.field(SWAP_FROZEN)
             section.field(SWAP_POTION_EFFECTS)
             section.field(SWAP_INVENTORY)
+            section.field(ENABLE_QUICK_SWAP)
         }
         field(TELEPORT_LOAD_TIME)
     })!!
@@ -135,6 +141,7 @@ object DeathSwapConfig {
         SWAP_FROZEN.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_POTION_EFFECTS.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         SWAP_INVENTORY.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
+        ENABLE_QUICK_SWAP.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
         TELEPORT_LOAD_TIME.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v }
     )
 
@@ -238,6 +245,12 @@ object DeathSwapConfig {
         get() = SWAP_INVENTORY.value()
         set(value) {
             SWAP_INVENTORY.setValue(value, true)
+        }
+
+    var enableQuickSwap: Boolean
+        get() = ENABLE_QUICK_SWAP.value()
+        set(value) {
+            ENABLE_QUICK_SWAP.setValue(value, true)
         }
 
     var teleportLoadTime: Int

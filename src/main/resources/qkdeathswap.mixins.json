@@ -1,14 +1,28 @@
 {
-    "required": true,
-    "minVersion": "0.8",
-    "package": "io.github.gaming32.qkdeathswap.mixin",
-    "compatibilityLevel": "JAVA_17",
-    "mixins": [
-        "EntityAccessor",
-        "MixinMobEntity",
-        "MixinServerPlayNetworkHandler"
-    ],
-    "injectors": {
-        "defaultRequire": 1
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.gaming32.qkdeathswap.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "EntityAccessor",
+    "MixinMobEntity",
+    "MixinServerPlayNetworkHandler",
+    "quickswap.MixinEntity",
+    "quickswap.MixinNetworkThreadUtils",
+    "quickswap.MixinPlayerInteractEntityC2SPacket$MixinInteractAtHandler",
+    "quickswap.MixinServerPlayNetworkHandler",
+    "quickswap.packet.MixinLookAtS2CPacket",
+    "quickswap.packet.MixinPacketWithChunkPos",
+    "quickswap.packet.MixinPacketWithPos",
+    "quickswap.packet.MixinPacketWithXZDouble",
+    "quickswap.packet.MixinPacketWithXZFloat",
+    "quickswap.packet.MixinPlayerInteractBlockC2SPacket",
+    "quickswap.packet.MixinPlayerInteractEntityC2SPacket",
+    "quickswap.packet.MixinPlaySoundS2CPacket",
+    "quickswap.packet.MixinUnloadChunkS2CPacket",
+    "quickswap.packet.MixinWorldBorderCenterPackets"
+  ],
+  "injectors": {
+    "defaultRequire": 1
 	}
 }

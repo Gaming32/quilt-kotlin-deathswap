@@ -45,5 +45,6 @@
 			}
 		]
 	},
-	"mixin": "qkdeathswap.mixins.json"
+	"mixin": "qkdeathswap.mixins.json",
+	"access_widener": "qkdeathswap.accesswidener"
 }
