@@ -10,7 +10,6 @@ import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
-import net.minecraft.unmapped.C_wmzutndm
 import net.minecraft.util.Formatting
 import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.registry.Registry
@@ -81,7 +80,6 @@ object DeathSwapStateManager {
                 x,
                 z
             ))
-            player.spawnLocation = player.location
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
@@ -246,6 +244,8 @@ object DeathSwapStateManager {
                         loc.z.toDouble(),
                         0f, 0f
                     )
+
+                    entity.spawnLocation = entity.location
                 }
             }
             timeSinceLastSwap = 0
