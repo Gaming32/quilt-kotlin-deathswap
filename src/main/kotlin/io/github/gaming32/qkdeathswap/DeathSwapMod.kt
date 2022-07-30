@@ -1,6 +1,5 @@
 package io.github.gaming32.qkdeathswap
 
-import com.mojang.brigadier.arguments.ArgumentType
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
@@ -11,7 +10,6 @@ import net.minecraft.inventory.SimpleInventory
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
 import net.minecraft.nbt.NbtCompound
-import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.NbtList
 import net.minecraft.network.MessageType
@@ -26,7 +24,6 @@ import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
-import org.quiltmc.config.api.values.TrackedValue
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.*
@@ -44,10 +41,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
-import kotlin.io.path.listDirectoryEntries
 
 const val MOD_ID = "qkdeathswap"
 
@@ -98,7 +93,7 @@ object DeathSwapMod : ModInitializer {
                         }
                     }
                     required(literal("config")) {
-                        DeathSwapConfig.INSTANCE!!.buildArguments(this)
+                        DeathSwapConfig.buildArguments(this)
                     }
                     required(literal("presets")) {
                         required(literal("load")) {
@@ -112,7 +107,6 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val preset = presetAccess.invoke(this).value()
                                     if (Presets.load(preset)) {
-                                        DeathSwapConfig.resetInstance()
                                         source.sendFeedback(Text.literal("Successfully loaded preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
                                     } else {
                                         source.sendFeedback(Text.literal("Failed to load preset ").append(Text.literal(preset).formatted(Formatting.RED)), false)
@@ -201,7 +195,7 @@ object DeathSwapMod : ModInitializer {
                     required(literal("default_kit")) {
                         required(literal("clear")) {
                             execute {
-                                DeathSwapConfig.INSTANCE!!.defaultKit?.clear()
+                                DeathSwapConfig.defaultKit.clear()
                                 NbtIo.writeCompressed(NbtCompound().apply {
                                     put("Inventory", NbtList())
                                 }, defaultKitStoreLocation)
@@ -212,8 +206,8 @@ object DeathSwapMod : ModInitializer {
                             optional(player("player")) { player ->
                                 execute {
                                     val actualPlayer = player?.invoke(this)?.value() ?: source.player
-                                    DeathSwapConfig.INSTANCE!!.defaultKit?.copyFrom(actualPlayer.inventory)
-                                    writeDefaultKit()
+                                    DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
+                                    DeathSwapConfig.writeDefaultKit()
                                     source.sendFeedback(
                                         if (actualPlayer === source) {
                                             Text.literal("Set the default kit to your current inventory")
@@ -228,16 +222,16 @@ object DeathSwapMod : ModInitializer {
                         }
                         required(literal("load")) {
                             execute {
-                                source.player.inventory.copyFrom(DeathSwapConfig.INSTANCE!!.defaultKit!!)
+                                source.player.inventory.copyFrom(DeathSwapConfig.defaultKit)
                             }
                         }
                         required(literal("view")) {
                             execute {
-                                viewKit(source.player, DeathSwapConfig.INSTANCE!!.defaultKit!!)
+                                viewKit(source.player, DeathSwapConfig.defaultKit)
                             }
                         }
                     }
-                    if (DeathSwapConfig.INSTANCE!!.enableDebug.value == true) {
+                    if (DeathSwapConfig.enableDebug.value == true) {
                         required(literal("debug")) {
                             required(literal("swap_now")) {
                                 execute {
@@ -353,7 +347,7 @@ object DeathSwapMod : ModInitializer {
                             for (i in 0 until 5) {
                                 kit.setStack(36 + i, getStack(i).copy())
                             }
-                            writeDefaultKit()
+                            DeathSwapConfig.writeDefaultKit()
                         }
 
                         var recursiveDirty = false
@@ -404,13 +398,5 @@ object DeathSwapMod : ModInitializer {
 
             override fun getDisplayName(): Text = Text.literal("Default kit")
         })
-    }
-
-    private fun writeDefaultKit() {
-        NbtIo.writeCompressed(NbtCompound().apply {
-            put("Inventory", NbtList().apply {
-                DeathSwapConfig.INSTANCE!!.defaultKit?.writeNbt(this)
-            })
-        }, defaultKitStoreLocation)
     }
 }

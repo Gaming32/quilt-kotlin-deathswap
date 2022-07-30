@@ -3,6 +3,7 @@ package xyz.wagyourtail.betterconfig
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
 import io.github.gaming32.qkdeathswap.consumerApply
+import net.minecraft.command.CommandSource
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
 import org.jetbrains.annotations.ApiStatus
@@ -15,12 +16,15 @@ import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
 import java.io.OutputStream
 
-open class BetterConfig(
+/**
+ * @author Wagyourtail
+ */
+open class BetterConfig<T : BetterConfig<T>>(
     private val configToml: CommentedConfig,
     private val saveStreamer: () -> OutputStream?
 ) {
     @ApiStatus.Internal
-    val configItems = mutableListOf<ConfigItem<Any, Any>>()
+    val configItems = mutableMapOf<String, ConfigItem<Any, Any>>()
 
     @ApiStatus.Internal
     val configGroups = mutableListOf<ConfigGroup>()
@@ -31,8 +35,8 @@ open class BetterConfig(
             configToml.setComment(item.group.key + item.name, item.comment)
         } else {
             configItems.forEach(consumerApply {
-                configToml.set<Any>(group.key + name, value?.let { serializer(it) })
-                configToml.setComment(group.key + name, comment)
+                configToml.set<Any>(key, value.value?.let { value.serializer(it) })
+                configToml.setComment(key, value.comment)
             })
         }
         saveStreamer()?.use {
@@ -48,13 +52,26 @@ open class BetterConfig(
         default: T?,
         brigadierType: ArgumentType<U>?,
         comment: String? = null,
-        noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-        noinline textName: (T?) -> Text = { Text.literal(it.toString()) as Text },
+        noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
         noinline serializer: (T?) -> Any? = { it },
-        noinline deserializer: (Any?) -> T? = { if (it is T) it else null }
+        noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
+        noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
+        noinline brigadierFilter: (CommandSource, U) -> Boolean = { source, value -> true }
     ): ConfigItem<T, U> {
-        val configItem = ConfigItem(this, name, emptyGroup, comment, textName, default, serializer, deserializer, brigadierType, brigadierDeserializer);
-        configItems.add(configItem as ConfigItem<Any, Any>)
+        val configItem = ConfigItem(
+            this,
+            name,
+            emptyGroup,
+            comment,
+            textValue,
+            default,
+            serializer,
+            deserializer,
+            brigadierType,
+            brigadierDeserializer,
+            brigadierFilter
+        );
+        configItems[configItem.key] = configItem as ConfigItem<Any, Any>
         return configItem
     }
 
@@ -64,20 +81,38 @@ open class BetterConfig(
         return configGroup
     }
 
-    data class ConfigGroup(val config: BetterConfig, val name: String?, val parent: ConfigGroup?, val comment: String?) {
+    data class ConfigGroup(
+        val config: BetterConfig<*>,
+        val name: String?,
+        val parent: ConfigGroup?,
+        val comment: String?
+    ) {
 
-        inline fun <reified T : Any, reified U: Any> register(
+        inline fun <reified T : Any, reified U : Any> register(
             name: String,
             default: T,
             brigadierType: ArgumentType<U>?,
             comment: String? = null,
             noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-            noinline textName: (T?) -> Text = { Text.literal(it.toString()) as Text },
+            noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
             noinline serializer: (T?) -> Any? = { it },
-            noinline deserializer: (Any?) -> T? = { if (it is T) it else null }
+            noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
+            noinline brigadierFilter: (CommandSource, U) -> Boolean = { source, value -> true }
         ): ConfigItem<T, U> {
-            val configItem = ConfigItem(config, name, this, comment, textName, default, serializer, deserializer, brigadierType, brigadierDeserializer);
-            config.configItems.add(configItem as ConfigItem<Any, Any>)
+            val configItem = ConfigItem(
+                config,
+                name,
+                this,
+                comment,
+                textValue,
+                default,
+                serializer,
+                deserializer,
+                brigadierType,
+                brigadierDeserializer,
+                brigadierFilter
+            );
+            config.configItems[configItem.key] = configItem as ConfigItem<Any, Any>
             return configItem
         }
 
@@ -100,8 +135,8 @@ open class BetterConfig(
             get() = if (name == null) listOf() else (parent?.key ?: listOf()) + name
     }
 
-    class ConfigItem<T : Any, U: Any>(
-        val config: BetterConfig,
+    class ConfigItem<T : Any, U : Any>(
+        val config: BetterConfig<*>,
 
         val name: String,
         val group: ConfigGroup,
@@ -114,7 +149,8 @@ open class BetterConfig(
         val deserializer: (Any?) -> T?,
 
         val brigadierType: ArgumentType<U>?,
-        val brigadierDesierializer: (U) -> T?
+        val brigadierDesierializer: (U) -> T?,
+        val brigadierFilter: (CommandSource, U) -> Boolean
     ) {
 
         private fun loadValue(): T? {
@@ -147,8 +183,9 @@ open class BetterConfig(
 
     }
 
-    fun buildArguments(parent : ArgumentBuilder<ServerCommandSource, *>) {
-        configItems.forEach { configItem ->
+    fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
+        configItems.forEach { entry ->
+            val configItem = entry.value
             if (configItem.brigadierType != null) {
                 parent.required(literal(configItem.key)) {
                     optional(argument("value", configItem.brigadierType)) { valueAccess ->
@@ -160,12 +197,20 @@ open class BetterConfig(
                                         Any::class.java
                                     )
                                 )
-                                configItem.value = newValue
-                                save(configItem)
-                                source.sendFeedback(
-                                    configItem.toText(),
-                                    false
-                                )
+                                if (!configItem.brigadierFilter(source, newValue)) {
+                                    source.sendFeedback(
+                                        Text.literal(newValue.toString()).append("is not a valid value for")
+                                            .append(configItem.key),
+                                        false
+                                    )
+                                } else {
+                                    configItem.value = newValue
+                                    save(configItem)
+                                    source.sendFeedback(
+                                        configItem.toText(),
+                                        false
+                                    )
+                                }
                             } else {
                                 source.sendFeedback(
                                     configItem.toText(),
@@ -185,9 +230,15 @@ open class BetterConfig(
     fun toText(): Text {
         val text = Text.literal("Config: ")
         configItems.forEach(consumerApply {
-            text.append("\n").append(toText())
+            text.append("\n").append(value.toText())
         })
         return text
+    }
+
+    open fun copyFrom(other: T) {
+        other.configItems.forEach(consumerApply {
+            configItems[key]?.value = value.value
+        })
     }
 }
 

@@ -23,9 +23,9 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val fireTicks = nextPlayer.fireTicks
     private val frozenTicks = nextPlayer.frozenTicks
 
-    private val statusEffects = if (DeathSwapConfig.INSTANCE!!.swapPotionEffects.value!!) nextPlayer.activeStatusEffects else null
+    private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value!!) nextPlayer.activeStatusEffects else null
 
-    private val angryMobs = if (DeathSwapConfig.INSTANCE!!.swapMobAggression.value!!) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
+    private val angryMobs = if (DeathSwapConfig.swapMobAggression.value!!) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
 
     private val air = nextPlayer.air
 
@@ -34,7 +34,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private var tempEntity: Entity? = null
 
     init {
-        if (DeathSwapConfig.INSTANCE!!.swapInventory.value!!) {
+        if (DeathSwapConfig.swapInventory.value!!) {
             val size = nextPlayer.inventory.size()
             inventory = mutableListOf()
             for (i in 0 until size) {
@@ -72,37 +72,37 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         thisPlayer.teleport(pos)
         tempEntity?.kill()
 
-        if (DeathSwapConfig.INSTANCE!!.swapHealth.value!!) {
+        if (DeathSwapConfig.swapHealth.value!!) {
             thisPlayer.health = health
         }
-        if (DeathSwapConfig.INSTANCE!!.swapHunger.value!!) {
+        if (DeathSwapConfig.swapHunger.value!!) {
             thisPlayer.hungerManager.foodLevel = food
             thisPlayer.hungerManager.saturationLevel = saturation
         }
         nextPlayer.stopRiding()
-        if (DeathSwapConfig.INSTANCE!!.swapMount.value!! && vehicle != null) {
+        if (DeathSwapConfig.swapMount.value!! && vehicle != null) {
             thisPlayer.startRiding(vehicle, true)
         }
 
-        if (DeathSwapConfig.INSTANCE!!.swapMobAggression.value!!) {
+        if (DeathSwapConfig.swapMobAggression.value!!) {
             swapMobAggression()
         }
-        if (DeathSwapConfig.INSTANCE!!.swapFire.value!!) {
+        if (DeathSwapConfig.swapFire.value!!) {
             thisPlayer.fireTicks = fireTicks
         }
-        if (DeathSwapConfig.INSTANCE!!.swapAir.value!!) {
+        if (DeathSwapConfig.swapAir.value!!) {
             thisPlayer.air = air
         }
-        if (DeathSwapConfig.INSTANCE!!.swapFrozen.value!!) {
+        if (DeathSwapConfig.swapFrozen.value!!) {
             thisPlayer.frozenTicks = frozenTicks
         }
-        if (DeathSwapConfig.INSTANCE!!.swapPotionEffects.value!!) {
+        if (DeathSwapConfig.swapPotionEffects.value!!) {
             thisPlayer.clearStatusEffects()
             statusEffects?.forEach {
                 thisPlayer.addStatusEffect(it.value)
             }
         }
-        if (DeathSwapConfig.INSTANCE!!.swapInventory.value!!) {
+        if (DeathSwapConfig.swapInventory.value!!) {
             thisPlayer.inventory.clear()
             for (i in 0 until (inventory?.size ?: 0)) {
                 thisPlayer.inventory.setStack(i, inventory?.get(i) ?: ItemStack.EMPTY)

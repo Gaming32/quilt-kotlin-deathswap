@@ -66,11 +66,11 @@ object DeathSwapStateManager {
         var playerAngle = Random.nextDouble(0.0, PI * 2)
         val playerAngleChange = PI * 2 / server.allPlayers.size
         server.allPlayers.forEach { player ->
-            val distance = Random.nextDouble(DeathSwapConfig.INSTANCE!!.minSpreadDistance.value!!.toDouble(), DeathSwapConfig.INSTANCE!!.maxSpreadDistance.value!!.toDouble())
+            val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.value!!.toDouble(), DeathSwapConfig.maxSpreadDistance.value!!.toDouble())
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
             livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getWorld(RegistryKey.of(Registry.WORLD_KEY, DeathSwapConfig.INSTANCE!!.dimension.value!!)) ?: server.getWorld(World.OVERWORLD)!!,
+                server.getWorld(RegistryKey.of(Registry.WORLD_KEY, DeathSwapConfig.dimension.value!!)) ?: server.getWorld(World.OVERWORLD)!!,
                 x,
                 z
             ))
@@ -81,7 +81,7 @@ object DeathSwapStateManager {
             world.timeOfDay = 0
         }
         timeSinceLastSwap = 0
-        timeToSwap = Random.nextInt(DeathSwapConfig.INSTANCE!!.swapTime)
+        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
     private fun removePlayer(player: UUID, reason: Text) {
@@ -141,7 +141,7 @@ object DeathSwapStateManager {
             player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
             player.setExperienceLevel(0)
             player.setExperiencePoints(0)
-            player.inventory.copyFrom(DeathSwapConfig.INSTANCE!!.defaultKit!!)
+            player.inventory.copyFrom(DeathSwapConfig.defaultKit!!)
             player.enderChestInventory.clear()
         }
         player.setSpawnPoint(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored
@@ -162,7 +162,7 @@ object DeathSwapStateManager {
                         entity.addStatusEffect(
                             StatusEffectInstance(
                                 StatusEffects.RESISTANCE,
-                                DeathSwapConfig.INSTANCE!!.resistanceTime.value!!,
+                                DeathSwapConfig.resistanceTime.value!!,
                                 255,
                                 true,
                                 false,
@@ -190,7 +190,7 @@ object DeathSwapStateManager {
             return
         }
 
-        if (timeSinceLastSwap > DeathSwapConfig.INSTANCE!!.teleportLoadTime.value!!) {
+        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value!!) {
             swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
             state = GameState.STARTED
@@ -221,14 +221,14 @@ object DeathSwapStateManager {
             swapTargets.forEach { it.preSwap() }
 
             timeSinceLastSwap = 0
-            timeToSwap = Random.nextInt(DeathSwapConfig.INSTANCE!!.swapTime)
+            timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
         }
-        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.INSTANCE!!.warnTime.value!!
+        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value!!
         if (withinWarnTime || timeSinceLastSwap % 20 == 0) {
             val text = Text.literal(
                 "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
             ).formatted(
-                if (timeSinceLastSwap >= DeathSwapConfig.INSTANCE!!.minSwapTime.value!!) Formatting.RED else Formatting.GREEN
+                if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime.value!!) Formatting.RED else Formatting.GREEN
             )
             server.allPlayers.forEach { player ->
                 val text2 = text.copy()

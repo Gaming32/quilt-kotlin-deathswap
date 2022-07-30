@@ -9,6 +9,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
+import kotlin.io.path.inputStream
 import kotlin.io.path.listDirectoryEntries
 
 object Presets {
@@ -18,30 +19,27 @@ object Presets {
 
     fun list(): List<String> {
         return builtin +
-            DeathSwapMod.presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) null else it.fileName.toString() }
+            DeathSwapMod.presetsDir.listDirectoryEntries().mapNotNull { if(Files.isDirectory(it)) it.fileName.toString() else null }
     }
 
     fun load(preset: String) : Boolean {
         val configFile = DeathSwapMod.presetsDir.resolve("$preset/deathswap.toml")
         if (configFile.exists()) {
-            Files.copy(configFile, DeathSwapMod.configDir.resolve("deathswap.toml"), StandardCopyOption.REPLACE_EXISTING)
             val kitPreset = DeathSwapMod.presetsDir.resolve("$preset/default_kit.dat")
             if (kitPreset.exists()) {
                 Files.copy(kitPreset, DeathSwapMod.configDir.resolve("default_kit.dat"), StandardCopyOption.REPLACE_EXISTING)
             } else {
                 DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
             }
+            configFile.inputStream().use {
+                DeathSwapConfig.copyFrom(DeathSwapConfig(it))
+            }
             return true
         } else {
             val internalPath = "/assets/${MOD_ID}/presets/${preset}"
             val internalFile = "$internalPath/deathswap.toml"
-            Presets::class.java.getResourceAsStream(internalFile).use { fileInputStream ->
-                return if (fileInputStream != null) {
-                    Files.copy(
-                        fileInputStream,
-                        DeathSwapMod.configDir.resolve("deathswap.toml"),
-                        StandardCopyOption.REPLACE_EXISTING
-                    )
+            Presets::class.java.getResourceAsStream(internalFile).use { configStream ->
+                return if (configStream != null) {
                     val kitPreset = "$internalPath/default_kit.dat"
                     Presets::class.java.getResourceAsStream(kitPreset).use { kitFileInputStream ->
                         if (kitFileInputStream != null) {
@@ -53,8 +51,9 @@ object Presets {
                         } else {
                             DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
                         }
-                        true
                     }
+                    DeathSwapConfig.copyFrom(DeathSwapConfig(configStream))
+                    true
                 } else {
                     false
                 }
@@ -106,6 +105,7 @@ object Presets {
     }
 
     fun save(preset: String) {
+        DeathSwapConfig.save()
         val configFile = DeathSwapMod.configDir.resolve("deathswap.toml")
         val presetFolder = DeathSwapMod.presetsDir.resolve(preset)
         if (!presetFolder.exists()) {

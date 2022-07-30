@@ -5,52 +5,65 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.entity.player.PlayerInventory
+import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.NbtList
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
-import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.file.FileNotFoundAction
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlParser
 import xyz.wagyourtail.betterconfig.BetterConfig
 import java.io.InputStream
 import java.io.OutputStream
-import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
-class DeathSwapConfig(
+open class DeathSwapConfig(
     configToml: CommentedConfig,
     saveStreamer: () -> OutputStream?
-) : BetterConfig(configToml, saveStreamer) {
-    companion object DeathSwapConfigStatic {
-        var INSTANCE: DeathSwapConfig? = null
-            get() {
-                if (field == null) {
-                    if (DeathSwapMod.configFile.exists()) {
-                        DeathSwapMod.configFile.inputStream().use {
-                            field = DeathSwapConfig(it) {
-                                DeathSwapMod.configFile.outputStream(StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-                            }
-                        }
-                    }
-                }
-                return field
+) : BetterConfig<DeathSwapConfig>(configToml, saveStreamer) {
+    companion object DeathSwapConfigStatic : DeathSwapConfig(
+        if (DeathSwapMod.configFile.exists()) {
+            DeathSwapMod.configFile.inputStream().use {
+                TomlParser().parse(it)
             }
-            private set
-
-        fun resetInstance() {
-            INSTANCE = null
+        } else {
+            TomlFormat.newConfig()
+        },
+        {
+            DeathSwapMod.configFile.outputStream(
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING
+            )
+        }
+    ) {
+        private fun loadInstance(): DeathSwapConfig {
+            return if (DeathSwapMod.configFile.exists()) {
+                println("Loading config from file")
+                DeathSwapMod.configFile.inputStream().use {
+                    println("Parsing config")
+                    DeathSwapConfig(it)
+                }
+            } else {
+                DeathSwapConfig(TomlFormat.newConfig()) {
+                    DeathSwapMod.configFile.outputStream(
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING
+                    )
+                }
+            }
         }
     }
-    constructor(input: InputStream, output: () -> OutputStream? = {null}) : this(TomlParser().parse(input), output)
+    constructor(input: InputStream, output: () -> OutputStream? = { null }) : this(TomlParser().parse(input), output)
 
-    private val swapTimeGroup = register("swap_time",
+    private val swapTimeGroup = register(
+        "swap_time",
         "The amount of time between swaps, in ticks\n" +
-        "Default 1-3 minutes"
+                "Default 1-3 minutes"
     )
 
     val minSwapTime = swapTimeGroup.register(
@@ -81,7 +94,8 @@ class DeathSwapConfig(
             maxSwapTime.value = range.last
         }
 
-    private val spreadDistanceGroup = register("spread_distance",
+    private val spreadDistanceGroup = register(
+        "spread_distance",
         "The distance from 0,0 players are teleported to"
     )
 
@@ -111,17 +125,22 @@ class DeathSwapConfig(
         DimensionArgumentType.dimension(),
         "The dimension players are teleported to",
         serializer = { it.toString() },
-        deserializer = { (it as? String)?.let(::Identifier) }
+        deserializer = { (it as? String)?.let(::Identifier) },
+        brigadierFilter = { source, value -> source.worldKeys.any {
+            it.value == value
+        } }
     )
 
-    val resistanceTime = register("resistance_time",
+    val resistanceTime = register(
+        "resistance_time",
         20 * 15,
         TimeArgumentType.time(),
         "The number of ticks of resistance players will get at the beginning of the deathswap\n" +
-        "Default 15 seconds"
+                "Default 15 seconds"
     )
 
-    private val swapOptionsGroup = register("swap_options",
+    private val swapOptionsGroup = register(
+        "swap_options",
         "Options for modifiers on the swap"
     )
 
@@ -185,7 +204,7 @@ class DeathSwapConfig(
         20 * 5,
         TimeArgumentType.time(),
         "The number of ticks it takes for the player to load after teleporting\n" +
-        "Default 5 seconds"
+                "Default 5 seconds"
     )
 
     val enableDebug = register<Boolean, Unit>(
@@ -194,18 +213,34 @@ class DeathSwapConfig(
         null
     )
 
-    var defaultKit: PlayerInventory? = null
-        get() {
-            if (field == null) {
-                field = PlayerInventory(null)
-                if (DeathSwapMod.defaultKitStoreLocation.exists()) {
-                    field!!.readNbt(
-                        NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
-                            .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
-                    )
-                }
+    var defaultKit: PlayerInventory = loadKit()
+
+    private fun loadKit(): PlayerInventory {
+        return PlayerInventory(null).apply {
+            if (DeathSwapMod.defaultKitStoreLocation.exists()) {
+                readNbt(
+                    NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
+                        .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
+                )
             }
-            return field
         }
-        private set
+    }
+
+    fun writeDefaultKit() {
+        NbtIo.writeCompressed(NbtCompound().apply {
+            put("Inventory", NbtList().apply {
+                DeathSwapConfig.defaultKit.writeNbt(this)
+            })
+        }, DeathSwapMod.defaultKitStoreLocation)
+    }
+
+    override fun copyFrom(other: DeathSwapConfig) {
+        super.copyFrom(other)
+        defaultKit = loadKit()
+    }
+
+    fun save() {
+        save(null)
+        writeDefaultKit()
+    }
 }
