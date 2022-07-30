@@ -1,5 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
+import io.github.gaming32.qkdeathswap.mixin.ScoreboardCriterionAccessor
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
@@ -55,6 +56,8 @@ object DeathSwapMod : ModInitializer {
     val presetsDir = configDir.resolve("presets")
 
     val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
+
+    val itemCountCriterion = ScoreboardCriterionAccessor.callCreate("$MOD_ID:item_count")
 
     override fun onInitialize(mod: ModContainer) {
 

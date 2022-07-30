@@ -6,7 +6,8 @@
   "mixins": [
     "EntityAccessor",
     "MixinInventoryChangedCriterion",
-    "MixinMobEntity"
+    "MixinMobEntity",
+    "ScoreboardCriterionAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

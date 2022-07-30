@@ -295,8 +295,15 @@ object DeathSwapStateManager {
     }
 
     fun onInventoryChanged(player: ServerPlayerEntity, stack: ItemStack) {
+        if (stack.isEmpty) {
+            return
+        }
+
         livingPlayers[player.uuid]?.let { holder ->
             holder.itemsCollected += stack.item
+            holder.player?.scoreboard?.forEachScore(DeathSwapMod.itemCountCriterion, holder.player?.entityName) {
+                it.score = holder.itemsCollected.size
+            }
         }
     }
 }
