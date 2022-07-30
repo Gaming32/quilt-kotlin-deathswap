@@ -198,7 +198,7 @@ open class BetterConfig<T : BetterConfig<T>>(
             get() = if (name == null) listOf() else (parent?.key ?: listOf()) + name
     }
 
-    class ConfigItem<T : Any, U : Any>(
+    data class ConfigItem<T : Any, U : Any>(
         private val config: BetterConfig<*>,
 
         val name: String,
