@@ -32,6 +32,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val inventory: List<ItemStack>?
 
     private var tempEntity: Entity? = null
+    private val nextStartLocation = DeathSwapStateManager.livingPlayers[nextPlayer.uuid]!!.startLocation
 
     init {
         if (DeathSwapConfig.swapInventory) {
@@ -66,6 +67,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     }
 
     fun swap(moreThanTwoPlayers: Boolean) {
+        DeathSwapStateManager.livingPlayers[thisPlayer.uuid]?.startLocation = nextStartLocation
         thisPlayer.velocity = Vec3d.ZERO
         thisPlayer.fallDistance = 0f
 
