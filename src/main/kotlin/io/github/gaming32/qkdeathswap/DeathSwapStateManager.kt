@@ -309,10 +309,4 @@ enum class DeathSwapGameMode(val allowDeath: Boolean, val limitedSwapCount: Bool
     private val id = name.lowercase()
 
     override fun asString() = id
-
-    object ArgumentType : C_wmzutndm<DeathSwapGameMode>(CODEC, { DeathSwapGameMode.values() })
-
-    companion object {
-        val CODEC = StringIdentifiable.createCodec { DeathSwapGameMode.values() }!!
-    }
 }

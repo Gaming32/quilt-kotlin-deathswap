@@ -2,6 +2,9 @@ package io.github.gaming32.qkdeathswap
 
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
+import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.entity.player.PlayerInventory
@@ -9,6 +12,7 @@ import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.NbtList
+import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
@@ -18,9 +22,12 @@ import xyz.wagyourtail.betterconfig.BetterConfig
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.StandardOpenOption
+import java.util.Arrays
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
+
+private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translatable("argument.enum.invalid", it) }
 
 open class DeathSwapConfig(
     configToml: CommentedConfig,
@@ -199,10 +206,20 @@ open class DeathSwapConfig(
         null
     )
 
-    val gameMode = setting(
+    val gameMode = setting<DeathSwapGameMode, String>(
         "game_mode",
         DeathSwapGameMode.NORMAL,
-        DeathSwapGameMode.ArgumentType,
+        StringArgumentType.word(),
+        brigadierDeserializer = { input ->
+            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: throw INVALID_ENUM_EXCEPTION.create(input)
+        },
+        brigadierSuggestor = { _, builder ->
+            CommandSource.suggestMatching(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::asString), builder)
+        },
+        serializer = { it?.asString() ?: "null" },
+        deserializer = { input ->
+            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: DeathSwapGameMode.NORMAL
+        }
     )
 
     val swapLimit = setting(

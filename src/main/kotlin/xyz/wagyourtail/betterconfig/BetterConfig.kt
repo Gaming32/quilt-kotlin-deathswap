@@ -2,6 +2,10 @@ package xyz.wagyourtail.betterconfig
 
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
+import com.mojang.brigadier.builder.RequiredArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.suggestion.Suggestions
+import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import io.github.gaming32.qkdeathswap.consumerApply
 import net.minecraft.command.CommandSource
 import net.minecraft.server.command.ServerCommandSource
@@ -16,6 +20,9 @@ import org.quiltmc.qkl.wrapper.minecraft.brigadier.execute
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
 import java.io.OutputStream
+import java.util.concurrent.CompletableFuture
+
+private typealias BrigadierSuggestor<S> = (CommandContext<S>, SuggestionsBuilder) -> CompletableFuture<Suggestions>
 
 /**
  * @author Wagyourtail
@@ -44,7 +51,8 @@ open class BetterConfig<T : BetterConfig<T>>(
         noinline serializer: (T?) -> Any? = { it },
         noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
         noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true }
+        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
+        noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
     ): ConfigItem<T, U> {
         val configItem = ConfigItem(
             this,
@@ -57,7 +65,8 @@ open class BetterConfig<T : BetterConfig<T>>(
             deserializer,
             brigadierType,
             brigadierDeserializer,
-            brigadierFilter
+            brigadierFilter,
+            brigadierSuggestor,
         )
         configItems[configItem.key] = configItem as ConfigItem<Any, Any>
         return configItem
@@ -84,12 +93,19 @@ open class BetterConfig<T : BetterConfig<T>>(
         }
     }
 
+    private fun <S> RequiredArgumentBuilder<S, *>.setSuggestor(suggestor: BrigadierSuggestor<CommandSource>) {
+        suggests(suggestor as BrigadierSuggestor<S>)
+    }
+
     fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
         configItems.forEach { entry ->
             val configItem = entry.value
             if (configItem.brigadierType != null) {
                 parent.required(literal(configItem.key)) {
                     optional(argument("value", configItem.brigadierType)) { valueAccess ->
+                        if (this is RequiredArgumentBuilder<*, *> && configItem.suggestor != null) {
+                            setSuggestor(configItem.suggestor)
+                        }
                         execute {
                             if (valueAccess != null) {
                                 val newValue = (configItem.brigadierDesierializer as (Any) -> Any)(
@@ -160,7 +176,8 @@ open class BetterConfig<T : BetterConfig<T>>(
             noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
             noinline serializer: (T?) -> Any? = { it },
             noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
-            noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true }
+            noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
+            noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
         ): ConfigItem<T, U> {
             val configItem = ConfigItem(
                 config,
@@ -173,7 +190,8 @@ open class BetterConfig<T : BetterConfig<T>>(
                 deserializer,
                 brigadierType,
                 brigadierDeserializer,
-                brigadierFilter
+                brigadierFilter,
+                brigadierSuggestor,
             )
             config.configItems[configItem.key] = configItem as ConfigItem<Any, Any>
             return configItem
@@ -215,7 +233,8 @@ open class BetterConfig<T : BetterConfig<T>>(
 
         val brigadierType: ArgumentType<U>?,
         val brigadierDesierializer: (U) -> T?,
-        val brigadierFilter: (CommandSource, U) -> Boolean
+        val brigadierFilter: (CommandSource, U) -> Boolean,
+        val suggestor: BrigadierSuggestor<CommandSource>?
     ) {
 
         private fun loadValue(): T? {
