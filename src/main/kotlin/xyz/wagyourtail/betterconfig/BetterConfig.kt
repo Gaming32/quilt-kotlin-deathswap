@@ -31,21 +31,6 @@ open class BetterConfig<T : BetterConfig<T>>(
     @ApiStatus.Internal
     val configGroups = mutableListOf<ConfigGroup>()
 
-    fun save(item: ConfigItem<Any, Any>? = null) {
-        if (item != null) {
-            configToml.set<Any>(item.group.key + item.name, item.value?.let { item.serializer(it) })
-            configToml.setComment(item.group.key + item.name, item.comment)
-        } else {
-            configItems.forEach(consumerApply {
-                configToml.set<Any>(key, value.value?.let { value.serializer(it) })
-                configToml.setComment(key, value.comment)
-            })
-        }
-        saveStreamer()?.use {
-            TomlWriter().write(configToml.unmodifiable(), it)
-        }
-    }
-
     @ApiStatus.Internal
     @Suppress("LeakingThis")
     val emptyGroup = ConfigGroup(this, null, null, null)
@@ -82,6 +67,81 @@ open class BetterConfig<T : BetterConfig<T>>(
         val configGroup = ConfigGroup(this, group, emptyGroup, comment)
         configGroups.add(configGroup)
         return configGroup
+    }
+
+    fun save(item: ConfigItem<Any, Any>? = null) {
+        if (item != null) {
+            configToml.set<Any>(item.group.key + item.name, item.value?.let { item.serializer(it) })
+            configToml.setComment(item.group.key + item.name, item.comment)
+        } else {
+            configItems.forEach(consumerApply {
+                configToml.set<Any>(key, value.value?.let { value.serializer(it) })
+                configToml.setComment(key, value.comment)
+            })
+        }
+        saveStreamer()?.use {
+            TomlWriter().write(configToml.unmodifiable(), it)
+        }
+    }
+
+    fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
+        configItems.forEach { entry ->
+            val configItem = entry.value
+            if (configItem.brigadierType != null) {
+                parent.required(literal(configItem.key)) {
+                    optional(argument("value", configItem.brigadierType)) { valueAccess ->
+                        execute {
+                            if (valueAccess != null) {
+                                val newValue = (configItem.brigadierDesierializer as (Any) -> Any)(
+                                    getArgument(
+                                        "value",
+                                        Any::class.java
+                                    )
+                                )
+                                if (!configItem.brigadierFilter(source, newValue)) {
+                                    source.sendFeedback(
+                                        Text.literal("")
+                                            .append(Text.literal(newValue.toString()).formatted(Formatting.RED))
+                                            .append(" is not a valid value for")
+                                            .append(configItem.key),
+                                        false
+                                    )
+                                } else {
+                                    configItem.value = newValue
+                                    save(configItem)
+                                    source.sendFeedback(
+                                        configItem.toText(),
+                                        false
+                                    )
+                                }
+                            } else {
+                                source.sendFeedback(
+                                    configItem.toText(),
+                                    false
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        parent.execute {
+            source.sendFeedback(toText(), false)
+        }
+    }
+
+    fun toText(): Text {
+        val text = Text.literal("Config: ")
+        configItems.forEach(consumerApply {
+            text.append("\n").append(value.toText())
+        })
+        return text
+    }
+
+    open fun copyFrom(other: T) {
+        other.configItems.forEach(consumerApply {
+            configItems[key]?.value = value.value
+        })
     }
 
     data class ConfigGroup(
@@ -186,66 +246,6 @@ open class BetterConfig<T : BetterConfig<T>>(
             return Text.literal(key).append(" -> ").append(textValue(value))
         }
 
-    }
-
-    fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
-        configItems.forEach { entry ->
-            val configItem = entry.value
-            if (configItem.brigadierType != null) {
-                parent.required(literal(configItem.key)) {
-                    optional(argument("value", configItem.brigadierType)) { valueAccess ->
-                        execute {
-                            if (valueAccess != null) {
-                                val newValue = (configItem.brigadierDesierializer as (Any) -> Any)(
-                                    getArgument(
-                                        "value",
-                                        Any::class.java
-                                    )
-                                )
-                                if (!configItem.brigadierFilter(source, newValue)) {
-                                    source.sendFeedback(
-                                        Text.literal("")
-                                            .append(Text.literal(newValue.toString()).formatted(Formatting.RED))
-                                            .append(" is not a valid value for")
-                                            .append(configItem.key),
-                                        false
-                                    )
-                                } else {
-                                    configItem.value = newValue
-                                    save(configItem)
-                                    source.sendFeedback(
-                                        configItem.toText(),
-                                        false
-                                    )
-                                }
-                            } else {
-                                source.sendFeedback(
-                                    configItem.toText(),
-                                    false
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        parent.execute {
-            source.sendFeedback(toText(), false)
-        }
-    }
-
-    fun toText(): Text {
-        val text = Text.literal("Config: ")
-        configItems.forEach(consumerApply {
-            text.append("\n").append(value.toText())
-        })
-        return text
-    }
-
-    open fun copyFrom(other: T) {
-        other.configItems.forEach(consumerApply {
-            configItems[key]?.value = value.value
-        })
     }
 }
 
