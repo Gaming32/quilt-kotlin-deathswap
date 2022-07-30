@@ -5,10 +5,14 @@ import net.minecraft.entity.EntityType
 import net.minecraft.entity.LightningEntity
 import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
+import net.minecraft.item.Item
+import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.unmapped.C_wmzutndm
 import net.minecraft.util.Formatting
+import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
@@ -39,12 +43,15 @@ class PlayerHolder(serverPlayerEntity: ServerPlayerEntity, val startLocation: Pl
     val server: MinecraftServer = serverPlayerEntity.server
     val player: ServerPlayerEntity?
         get() = server.playerManager.getPlayer(uuid)
+
+    val itemsCollected = mutableSetOf<Item>()
 }
 
 object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
     private set
 
+    var swapCount = 0
     var timeSinceLastSwap = 0
     var timeToSwap = 0
 
@@ -74,12 +81,15 @@ object DeathSwapStateManager {
                 x,
                 z
             ))
+            player.spawnLocation = player.location
             playerAngle += playerAngleChange
         }
         server.worlds.forEach { world ->
             world.setWeather(0, 0, false, false)
             world.timeOfDay = 0
         }
+
+        swapCount = 0
         timeSinceLastSwap = 0
         timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
@@ -107,7 +117,11 @@ object DeathSwapStateManager {
 
     fun endGame(server: MinecraftServer, natural: Boolean = true) {
         if (natural) {
-            val name = livingPlayers.entries.firstOrNull()?.value?.displayName ?: Text.literal("Nobody")
+            val winner = when (DeathSwapConfig.gameMode.value) {
+                DeathSwapGameMode.ITEM_COUNT -> livingPlayers.values.maxBy { it.itemsCollected.size }
+                else -> livingPlayers.values.firstOrNull()
+            }
+            val name = winner?.displayName ?: Text.literal("Nobody")
 
             server.broadcast(
                 Text.literal("Game over! ")
@@ -141,7 +155,7 @@ object DeathSwapStateManager {
             player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
             player.setExperienceLevel(0)
             player.setExperiencePoints(0)
-            player.inventory.copyFrom(DeathSwapConfig.defaultKit!!)
+            player.inventory.copyFrom(DeathSwapConfig.defaultKit)
             player.enderChestInventory.clear()
         }
         player.setSpawnPoint(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored
@@ -150,43 +164,9 @@ object DeathSwapStateManager {
 
     fun tick(server: MinecraftServer) {
         timeSinceLastSwap++
+
         if (state == GameState.STARTING) {
-            if (livingPlayers.values.all { it.startLocation.tick() }) {
-                livingPlayers.forEach { entry ->
-                    val loc = entry.value.startLocation
-                    val entity = entry.value.player
-                    if (entity == null) {
-                        removePlayer(entry.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
-                    } else {
-                        resetPlayer(entity, includeInventory = true)
-                        entity.addStatusEffect(
-                            StatusEffectInstance(
-                                StatusEffects.RESISTANCE,
-                                DeathSwapConfig.resistanceTime.value!!,
-                                255,
-                                true,
-                                false,
-                                true
-                            )
-                        )
-                        entity.teleport(
-                            loc.world,
-                            loc.x.toDouble(),
-                            loc.y.toDouble(),
-                            loc.z.toDouble(),
-                            0f, 0f
-                        )
-                    }
-                }
-                timeSinceLastSwap = 0
-                state = GameState.STARTED
-            }
-            if (timeSinceLastSwap % 20 == 0) {
-                val starting = Text.literal("Finding start locations: ").append(Text.literal(ticksToMinutesSeconds(timeSinceLastSwap)).formatted(Formatting.YELLOW))
-                server.allPlayers.forEach { player ->
-                    player.sendMessage(starting, true)
-                }
-            }
+            tickStartingPositions(server)
             return
         }
 
@@ -197,39 +177,23 @@ object DeathSwapStateManager {
         }
 
         if (timeSinceLastSwap > timeToSwap) {
-            server.broadcast("Swapping!")
-
-            val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
-                val entity = player.value.player
-                if (entity == null) {
-                    removePlayer(player.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
-                }
-                entity
-            }
-
-            if (shuffledPlayers.size < 2) {
-                return
-            }
-
-            swapTargets.clear()
-
-            for (i in 1 until shuffledPlayers.size) {
-                swapTargets.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
-            }
-            swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
-            state = GameState.TELEPORTING
-            swapTargets.forEach { it.preSwap() }
-
-            timeSinceLastSwap = 0
-            timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
+            beginSwap(server)
         }
+
         val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value!!
         if (withinWarnTime || timeSinceLastSwap % 20 == 0) {
-            val text = Text.literal(
+            var text = Text.literal(
                 "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
             ).formatted(
                 if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime.value!!) Formatting.RED else Formatting.GREEN
             )
+
+            if (DeathSwapConfig.gameMode.value?.limitedSwapCount == true) {
+                text = Text.literal("Swaps: $swapCount/${DeathSwapConfig.swapLimit.value} | ")
+                    .formatted(Formatting.YELLOW)
+                    .append(text)
+            }
+
             server.allPlayers.forEach { player ->
                 val text2 = text.copy()
                 if (player.isSpectator) {
@@ -241,8 +205,114 @@ object DeathSwapStateManager {
                             .formatted(Formatting.DARK_RED)
                     )
                 }
+
+                if (DeathSwapConfig.gameMode.value == DeathSwapGameMode.ITEM_COUNT) {
+                    livingPlayers[player.uuid]?.let { holder ->
+                        text2.append(
+                            Text.literal(" | Items Obtained: ${holder.itemsCollected.size}")
+                                .formatted(Formatting.YELLOW)
+                        )
+                    }
+                }
+
                 player.sendMessage(text2, true)
             }
         }
+    }
+
+    private fun tickStartingPositions(server: MinecraftServer) {
+        if (livingPlayers.values.all { it.startLocation.tick() }) {
+            livingPlayers.forEach { entry ->
+                val loc = entry.value.startLocation
+                val entity = entry.value.player
+                if (entity == null) {
+                    removePlayer(entry.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
+                } else {
+                    resetPlayer(entity, includeInventory = true)
+                    entity.addStatusEffect(
+                        StatusEffectInstance(
+                            StatusEffects.RESISTANCE,
+                            DeathSwapConfig.resistanceTime.value!!,
+                            255,
+                            true,
+                            false,
+                            true
+                        )
+                    )
+                    entity.teleport(
+                        loc.world,
+                        loc.x.toDouble(),
+                        loc.y.toDouble(),
+                        loc.z.toDouble(),
+                        0f, 0f
+                    )
+                }
+            }
+            timeSinceLastSwap = 0
+            state = GameState.STARTED
+        }
+        if (timeSinceLastSwap % 20 == 0) {
+            val starting = Text.literal("Finding start locations: ").append(Text.literal(ticksToMinutesSeconds(timeSinceLastSwap)).formatted(Formatting.YELLOW))
+            server.allPlayers.forEach { player ->
+                player.sendMessage(starting, true)
+            }
+        }
+    }
+
+    private fun beginSwap(server: MinecraftServer) {
+        if (DeathSwapConfig.gameMode.value?.limitedSwapCount == true
+            && swapCount++ >= (DeathSwapConfig.swapLimit.value ?: DeathSwapConfig.swapLimit.default!!)
+        ) {
+            endGame(server)
+            return
+        }
+
+        server.broadcast("Swapping!")
+
+        val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
+            val entity = player.value.player
+            if (entity == null) {
+                removePlayer(player.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
+            }
+            entity
+        }
+
+        if (shuffledPlayers.size < 2) {
+            return
+        }
+
+        swapTargets.clear()
+
+        for (i in 1 until shuffledPlayers.size) {
+            swapTargets.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
+        }
+        swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
+        state = GameState.TELEPORTING
+        swapTargets.forEach { it.preSwap() }
+
+        timeSinceLastSwap = 0
+        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
+    }
+
+    fun onInventoryChanged(player: ServerPlayerEntity, stack: ItemStack) {
+        livingPlayers[player.uuid]?.let { holder ->
+            holder.itemsCollected += stack.item
+        }
+    }
+}
+
+enum class DeathSwapGameMode(val allowDeath: Boolean, val limitedSwapCount: Boolean) : StringIdentifiable {
+    NORMAL(false, false),
+    ITEM_COUNT(true, true),
+    ;
+
+    private val id = name.lowercase()
+
+    override fun asString() = id
+
+    object ArgumentType : C_wmzutndm<DeathSwapGameMode>(CODEC, { DeathSwapGameMode.values() })
+
+    companion object {
+        val CODEC = StringIdentifiable.createCodec { DeathSwapGameMode.values() }!!
     }
 }

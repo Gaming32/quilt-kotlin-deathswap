@@ -23,6 +23,8 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val fireTicks = nextPlayer.fireTicks
     private val frozenTicks = nextPlayer.frozenTicks
 
+    private val spawnPoint = nextPlayer.spawnLocation
+
     private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value!!) nextPlayer.activeStatusEffects else null
 
     private val angryMobs = if (DeathSwapConfig.swapMobAggression.value!!) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
@@ -55,21 +57,28 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
             pos.pitch,
             pos.pose
         )
-        tempEntity = ArmorStandEntity(pos.world, pos.x, this.pos.y, pos.z).apply {
-            isInvulnerable = true
-            isInvisible = true
-            setNoGravity(true)
-            (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
+        val world = pos.getWorld(this.thisPlayer.server)
+        if (world != null) {
+            tempEntity = ArmorStandEntity(world, pos.x, this.pos.y, pos.z).apply {
+                isInvulnerable = true
+                isInvisible = true
+                setNoGravity(true)
+                (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
+            }
+            world.spawnEntity(tempEntity)
         }
-        pos.world?.spawnEntity(tempEntity)
         thisPlayer.teleport(pos)
+        thisPlayer.spawnLocation = pos
     }
 
     fun swap(moreThanTwoPlayers: Boolean) {
         thisPlayer.velocity = Vec3d.ZERO
         thisPlayer.fallDistance = 0f
 
-        thisPlayer.teleport(pos)
+        val targetPos = if (nextPlayer.isDead && spawnPoint != null) spawnPoint else pos
+
+        thisPlayer.teleport(targetPos)
+        thisPlayer.spawnLocation = spawnPoint
         tempEntity?.kill()
 
         if (DeathSwapConfig.swapHealth.value!!) {

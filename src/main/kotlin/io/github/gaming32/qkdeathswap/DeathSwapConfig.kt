@@ -199,6 +199,18 @@ open class DeathSwapConfig(
         null
     )
 
+    val gameMode = setting(
+        "game_mode",
+        DeathSwapGameMode.NORMAL,
+        DeathSwapGameMode.ArgumentType,
+    )
+
+    val swapLimit = setting(
+        "swap_limit",
+        10,
+        IntegerArgumentType.integer(1)
+    )
+
     var defaultKit: PlayerInventory = loadKit()
 
     private fun loadKit(): PlayerInventory {

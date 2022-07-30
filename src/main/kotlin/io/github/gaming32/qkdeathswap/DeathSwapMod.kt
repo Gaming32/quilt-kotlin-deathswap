@@ -251,7 +251,7 @@ object DeathSwapMod : ModInitializer {
             }
 
             ALLOW_DEATH.register { player, _, _ ->
-                if (!DeathSwapStateManager.hasBegun()) {
+                if (!DeathSwapStateManager.hasBegun() || DeathSwapConfig.gameMode.value?.allowDeath == true) {
                     return@register true
                 }
                 val shouldCancelDeathScreen = DeathSwapStateManager.livingPlayers.size > 2
