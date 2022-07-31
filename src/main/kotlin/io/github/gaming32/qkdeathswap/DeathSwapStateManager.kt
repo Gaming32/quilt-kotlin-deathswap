@@ -44,6 +44,7 @@ class PlayerHolder(serverPlayerEntity: ServerPlayerEntity, val startLocation: Pl
         get() = server.playerManager.getPlayer(uuid)
 
     val itemsCollected = mutableSetOf<Item>()
+    val itemsCrafted = mutableSetOf<Item>()
 }
 
 object DeathSwapStateManager {
@@ -300,10 +301,23 @@ object DeathSwapStateManager {
         }
 
         livingPlayers[player.uuid]?.let { holder ->
+            if (DeathSwapConfig.craftingCountsTowardsItemCount.value == false && stack.item in holder.itemsCrafted) {
+                return@let
+            }
             holder.itemsCollected += stack.item
             holder.player?.scoreboard?.forEachScore(DeathSwapMod.itemCountCriterion, holder.player?.entityName) {
                 it.score = holder.itemsCollected.size
             }
+        }
+    }
+
+    fun onCraft(player: ServerPlayerEntity, stack: ItemStack) {
+        if (stack.isEmpty) {
+            return
+        }
+
+        livingPlayers[player.uuid]?.let { holder ->
+            holder.itemsCrafted += stack.item
         }
     }
 }

@@ -222,6 +222,12 @@ open class DeathSwapConfig(
         }
     )
 
+    val craftingCountsTowardsItemCount = setting(
+        "crafting_counts_towards_item_count",
+        true,
+        BoolArgumentType.bool(),
+    )
+
     val swapLimit = setting(
         "swap_limit",
         10,
