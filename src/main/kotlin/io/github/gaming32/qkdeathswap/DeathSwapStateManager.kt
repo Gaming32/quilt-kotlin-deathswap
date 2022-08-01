@@ -31,7 +31,7 @@ enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
 }
 
-class PlayerHolder(serverPlayerEntity: ServerPlayerEntity, val startLocation: PlayerStartLocation) {
+class PlayerHolder(serverPlayerEntity: ServerPlayerEntity, var startLocation: PlayerStartLocation) {
     var displayName: Text = serverPlayerEntity.displayName
         get() {
             field = player?.displayName ?: field
