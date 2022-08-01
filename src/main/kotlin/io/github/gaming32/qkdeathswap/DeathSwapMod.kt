@@ -19,6 +19,7 @@ import net.minecraft.screen.GenericContainerScreenHandler
 import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.ScreenHandlerType
+import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.text.Text
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
@@ -148,56 +149,43 @@ object DeathSwapMod : ModInitializer {
                                         playerInventory: PlayerInventory,
                                         playerEntity: PlayerEntity
                                     ): ScreenHandler {
-                                        val screenHandler = GenericContainerScreenHandler(
+                                        val screenHandler = object : GenericContainerScreenHandler(
                                             ScreenHandlerType.GENERIC_9X5,
                                             syncId,
                                             playerInventory,
-                                            object : SimpleInventory(9 * 5) {
-                                                override fun onClose(player: PlayerEntity) {
-                                                    val kit = DeathSwapConfig.defaultKit
-                                                    for (i in 0 until 4) {
-                                                        for (j in 0 until 9) {
-                                                            kit.setStack(
-                                                                i * 9 + j,
-                                                                getStack((4 - i) * 9 + j).copy()
-                                                            )
-                                                        }
-                                                    }
-                                                    for (i in 0 until 5) {
-                                                        kit.setStack(36 + i, getStack(i).copy())
-                                                    }
-                                                    writeDefaultKit()
-                                                }
-
-                                                var recursiveDirty = false
-                                                override fun markDirty() {
-                                                    if (recursiveDirty) return
-                                                    super.markDirty()
-                                                    recursiveDirty = true
-                                                    for (i in 5 until 9) {
-                                                        setStack(i, ItemStack(Items.BARRIER))
-                                                    }
-                                                    recursiveDirty = false
-                                                }
-
-                                                override fun removeStack(slot: Int): ItemStack =
-                                                    if (slot in 5 until 9) ItemStack.EMPTY
-                                                    else super.removeStack(slot)
-
-                                                override fun removeStack(slot: Int, amount: Int): ItemStack =
-                                                    if (slot in 5 until 9) ItemStack.EMPTY
-                                                    else super.removeStack(slot, amount)
-
-                                                override fun setStack(slot: Int, stack: ItemStack?) {
-                                                    if (stack?.item == Items.BARRIER) {
-                                                        super.setStack(slot, stack?.apply { count = 1 })
-                                                        return
-                                                    }
-                                                    if (slot !in 5 until 9) super.setStack(slot, stack)
-                                                }
-                                            },
+                                            SimpleInventory(9 * 5),
                                             5
-                                        )
+                                        ) {
+                                            override fun onSlotClick(
+                                                slotIndex: Int,
+                                                button: Int,
+                                                actionType: SlotActionType?,
+                                                player: PlayerEntity?
+                                            ) {
+                                                if (slotIndex in 5 until 9) {
+                                                    cursorStack = ItemStack.EMPTY
+                                                    updateToClient()
+                                                    return
+                                                }
+                                                super.onSlotClick(slotIndex, button, actionType, player)
+                                            }
+
+                                            override fun close(player: PlayerEntity) {
+                                                val kit = DeathSwapConfig.defaultKit
+                                                for (i in 0 until 4) {
+                                                    for (j in 0 until 9) {
+                                                        kit.setStack(
+                                                            i * 9 + j,
+                                                            getSlot((4 - i) * 9 + j).stack.copy()
+                                                        )
+                                                    }
+                                                }
+                                                for (i in 0 until 5) {
+                                                    kit.setStack(36 + i, getSlot(i).stack.copy())
+                                                }
+                                                writeDefaultKit()
+                                            }
+                                        }
                                         val kit = DeathSwapConfig.defaultKit
                                         for (i in 0 until 4) {
                                             for (j in 0 until 9) {
