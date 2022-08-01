@@ -16,7 +16,7 @@ import net.minecraft.world.World
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlParser
-import xyz.wagyourtail.betterconfig.BetterConfig
+import xyz.wagyourtail.betterconfig.BaseConfig
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.StandardOpenOption
@@ -29,7 +29,7 @@ private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translat
 open class DeathSwapConfig(
     configToml: CommentedConfig,
     saveStreamer: () -> OutputStream?
-) : BetterConfig<DeathSwapConfig>("Quilt Deathswap Config", configToml, saveStreamer) {
+) : BaseConfig<DeathSwapConfig>("Quilt Deathswap Config", configToml, saveStreamer) {
     companion object DeathSwapConfigStatic : DeathSwapConfig(
         if (DeathSwapMod.configFile.exists()) {
             DeathSwapMod.configFile.inputStream().use {

@@ -28,7 +28,7 @@ private typealias BrigadierSuggestor<S> = (CommandContext<S>, SuggestionsBuilder
  * @author Wagyourtail
  */
 @Suppress("UNCHECKED_CAST", "UNUSED")
-abstract class BetterConfig<T : BetterConfig<T>>(
+abstract class BaseConfig<T : BaseConfig<T>>(
     displayName: String,
 
     @ApiStatus.Internal
@@ -153,11 +153,11 @@ open class ConfigGroup(
             return combined
         }
 
-    val parentConfig: BetterConfig<*>
+    val parentConfig: BaseConfig<*>
         get() {
             var current: ConfigGroup? = this
             while (current != null) {
-                if (current is BetterConfig<*>) {
+                if (current is BaseConfig<*>) {
                     return current
                 }
                 current = current.parent
@@ -217,7 +217,7 @@ open class ConfigGroup(
     }
 
     val key: List<String>
-        get() = if (this is BetterConfig<*>) listOf() else (parent?.key ?: listOf()) + name
+        get() = if (this is BaseConfig<*>) listOf() else (parent?.key ?: listOf()) + name
 }
 
 @Suppress("UNUSED")
@@ -271,5 +271,3 @@ data class ConfigItem<T, U>(
     }
 
 }
-
-
