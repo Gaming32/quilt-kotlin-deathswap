@@ -228,6 +228,12 @@ open class DeathSwapConfig(
         BoolArgumentType.bool(),
     )
 
+    val destroyItemsDuringSwap = setting(
+        "destroy_items_during_swap",
+        false,
+        BoolArgumentType.bool(),
+    )
+
     val swapLimit = setting(
         "swap_limit",
         10,

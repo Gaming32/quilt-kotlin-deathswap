@@ -2,6 +2,7 @@ package io.github.gaming32.qkdeathswap
 
 import net.minecraft.command.CommandException
 import net.minecraft.entity.EntityType
+import net.minecraft.entity.ItemEntity
 import net.minecraft.entity.LightningEntity
 import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
@@ -12,6 +13,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.StringIdentifiable
+import net.minecraft.util.TypeFilter
 import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
@@ -269,6 +271,14 @@ object DeathSwapStateManager {
         }
 
         server.broadcast("Swapping!")
+
+        if (DeathSwapConfig.destroyItemsDuringSwap.value == true) {
+            for (world in server.worlds) {
+                for (entity in world.getEntitiesByType(TypeFilter.instanceOf(ItemEntity::class.java)) { true }) {
+                    entity.discard()
+                }
+            }
+        }
 
         val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
             val entity = player.value.player
