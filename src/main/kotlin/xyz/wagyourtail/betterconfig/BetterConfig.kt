@@ -244,14 +244,13 @@ data class ConfigItem<T, U>(
         return deserializer(group.parentConfig.configToml.get(tomlKey))
     }
 
-    fun write(writeParent: Boolean = true): T {
-        group.parentConfig.configToml.set<Any>(tomlKey, default?.let { serializer(it) })
+    fun write(writeParent: Boolean = true) {
+        group.parentConfig.configToml.set<Any>(tomlKey, value?.let { serializer(it) })
         group.parentConfig.configToml.setComment(tomlKey, comment)
         group.write(writeParent)
-        return default
     }
 
-    var value: T = loadValue() ?: write()
+    var value: T = loadValue() ?: default
         set(value) {
             field = value
             group.parentConfig.save(this)
