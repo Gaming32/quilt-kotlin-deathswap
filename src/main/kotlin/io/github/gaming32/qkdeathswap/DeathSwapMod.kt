@@ -37,8 +37,10 @@ import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
 import org.quiltmc.qkl.wrapper.qsl.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
+import org.quiltmc.qsl.base.api.entrypoint.client.ClientModInitializer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import xyz.wagyourtail.betterconfig.BetterConfig
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -46,7 +48,7 @@ import kotlin.io.path.exists
 
 const val MOD_ID = "qkdeathswap"
 
-object DeathSwapMod : ModInitializer {
+object DeathSwapMod : ModInitializer, ClientModInitializer {
     @JvmField val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
 
     val configDir: Path = QuiltLoader.getConfigDir().resolve(MOD_ID)
@@ -56,8 +58,12 @@ object DeathSwapMod : ModInitializer {
 
     val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
 
-    override fun onInitialize(mod: ModContainer) {
+    override fun onInitializeClient(mod: ModContainer) {
+        BetterConfig.bootstrapClient()
+    }
 
+    override fun onInitialize(mod: ModContainer) {
+        BetterConfig.bootstrap()
 
         if (!configDir.exists()) {
             configDir.toFile().mkdirs()
