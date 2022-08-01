@@ -28,65 +28,24 @@ private typealias BrigadierSuggestor<S> = (CommandContext<S>, SuggestionsBuilder
  * @author Wagyourtail
  */
 @Suppress("UNCHECKED_CAST", "UNUSED")
-open class BetterConfig<T : BetterConfig<T>>(
-    private val configToml: CommentedConfig,
+abstract class BetterConfig<T : BetterConfig<T>>(
+    displayName: String,
+
+    @ApiStatus.Internal
+    val configToml: CommentedConfig,
+
     private val saveStreamer: () -> OutputStream?
-) {
-    @ApiStatus.Internal
-    val configItems = mutableMapOf<String, ConfigItem<Any, Any>>()
+) : ConfigGroup(displayName, null, null) {
 
-    @ApiStatus.Internal
-    val configGroups = mutableListOf<ConfigGroup>()
-
-    @ApiStatus.Internal
-    @Suppress("LeakingThis")
-    val emptyGroup = ConfigGroup(this, null, null, null)
-
-    inline fun <reified T : Any, reified U : Any> setting(
-        name: String,
-        default: T?,
-        brigadierType: ArgumentType<U>?,
-        comment: String? = null,
-        noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
-        noinline serializer: (T?) -> Any? = { it },
-        noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
-        noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
-        noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
-    ): ConfigItem<T, U> {
-        val configItem = ConfigItem(
-            this,
-            name,
-            emptyGroup,
-            comment,
-            textValue,
-            default,
-            serializer,
-            deserializer,
-            brigadierType,
-            brigadierDeserializer,
-            brigadierFilter,
-            brigadierSuggestor,
-        )
-        configItems[configItem.key] = configItem as ConfigItem<Any, Any>
-        return configItem
+    override fun save() {
+        save(null)
     }
 
-    fun group(group: String, comment: String? = null): ConfigGroup {
-        val configGroup = ConfigGroup(this, group, emptyGroup, comment)
-        configGroups.add(configGroup)
-        return configGroup
-    }
-
-    fun save(item: ConfigItem<Any, Any>? = null) {
+    fun save(item: ConfigItem<*, *>? = null) {
         if (item != null) {
-            configToml.set<Any>(item.group.key + item.name, item.value?.let { item.serializer(it) })
-            configToml.setComment(item.group.key + item.name, item.comment)
+            item.write(false)
         } else {
-            configItems.forEach(consumerApply {
-                configToml.set<Any>(key, value.value?.let { value.serializer(it) })
-                configToml.setComment(key, value.comment)
-            })
+            writeAll()
         }
         saveStreamer()?.use {
             TomlWriter().write(configToml.unmodifiable(), it)
@@ -98,8 +57,8 @@ open class BetterConfig<T : BetterConfig<T>>(
     }
 
     fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
-        configItems.forEach { entry ->
-            val configItem = entry.value
+        flatItems.forEach { entry ->
+            val configItem = entry.value as ConfigItem<Any?, Any?>
             if (configItem.brigadierType != null) {
                 parent.required(literal(configItem.key)) {
                     optional(argument("value", configItem.brigadierType)) { valueAccess ->
@@ -148,124 +107,170 @@ open class BetterConfig<T : BetterConfig<T>>(
 
     fun toText(): Text {
         val text = Text.literal("Config: ")
-        configItems.forEach(consumerApply {
+        flatItems.toSortedMap().forEach(consumerApply {
             text.append("\n").append(value.toText())
         })
         return text
     }
 
     open fun copyFrom(other: T) {
-        other.configItems.forEach(consumerApply {
-            configItems[key]?.value = value.value
+        other.flatItems.forEach(consumerApply {
+            val item = flatItems[key] as ConfigItem<Any?, Any?>?
+            if (item != null) {
+                item.value = value.value
+            }
         })
     }
 
-    data class ConfigGroup(
-        val config: BetterConfig<*>,
-        val name: String?,
-        val parent: ConfigGroup?,
-        val comment: String?
-    ) {
-
-        inline fun <reified T : Any, reified U : Any> setting(
-            name: String,
-            default: T,
-            brigadierType: ArgumentType<U>?,
-            comment: String? = null,
-            noinline brigadierDeserializer: (U) -> T? = { if (it is T) it else null },
-            noinline textValue: (T?) -> Text = { Text.literal(it.toString()) as Text },
-            noinline serializer: (T?) -> Any? = { it },
-            noinline deserializer: (Any?) -> T? = { if (it is T) it else null },
-            noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
-            noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
-        ): ConfigItem<T, U> {
-            val configItem = ConfigItem(
-                config,
-                name,
-                this,
-                comment,
-                textValue,
-                default,
-                serializer,
-                deserializer,
-                brigadierType,
-                brigadierDeserializer,
-                brigadierFilter,
-                brigadierSuggestor,
-            )
-            config.configItems[configItem.key] = configItem as ConfigItem<Any, Any>
-            return configItem
-        }
-
-        fun group(group: String, comment: String? = null): ConfigGroup {
-            val configGroup = ConfigGroup(config, group, parent, comment)
-            config.configGroups.add(configGroup)
-            return configGroup
-        }
-
-        fun write() {
-            if (name != null) {
-                config.configToml.setComment(key, comment)
-            }
-            if (parent != null && parent != config.emptyGroup) {
-                parent.write()
-            }
-        }
-
-        val key: List<String>
-            get() = if (name == null) listOf() else (parent?.key ?: listOf()) + name
+    override fun write(writeParent: Boolean) {
+        //no-op
     }
 
-    data class ConfigItem<T : Any, U : Any>(
-        private val config: BetterConfig<*>,
+}
 
-        val name: String,
-        val group: ConfigGroup,
-        var comment: String?,
-        val textValue: (T?) -> Text,
+@Suppress("UNCHECKED_CAST", "UNUSED", "MemberVisibilityCanBePrivate")
+open class ConfigGroup(
+    val name: String,
+    val parent: ConfigGroup?,
+    val comment: String?
+) {
 
 
-        @Suppress("MemberVisibilityCanBePrivate")
-        val default: T?,
+    @ApiStatus.Internal
+    val configItems = mutableMapOf<String, ConfigItem<*, *>>()
 
-        val serializer: (T) -> Any?,
-        val deserializer: (Any?) -> T?,
+    @ApiStatus.Internal
+    val configGroups = mutableListOf<ConfigGroup>()
 
-        val brigadierType: ArgumentType<U>?,
-        val brigadierDesierializer: (U) -> T?,
-        val brigadierFilter: (CommandSource, U) -> Boolean,
-        val suggestor: BrigadierSuggestor<CommandSource>?
-    ) {
-
-        private fun loadValue(): T? {
-            return deserializer(config.configToml.get(group.key + name))
-        }
-
-        private fun write(): T? {
-            config.configToml.set<Any>(group.key + name, default?.let { serializer(it) })
-            config.configToml.setComment(group.key + name, comment)
-            group.write()
-            return default
-        }
-
-        var value: T? = loadValue() ?: write()
-            set(value) {
-                field = value
-                config.save(this as ConfigItem<Any, Any>)
+    @get:ApiStatus.Internal
+    val flatItems: Map<String, ConfigItem<*, *>>
+        get() {
+            val combined = mutableMapOf<String, ConfigItem<*, *>>()
+            combined.putAll(configItems)
+            configGroups.forEach {
+                combined.putAll(it.flatItems)
             }
-
-        fun reset() {
-            value = default
+            return combined
         }
 
-        val key: String
-            get() = (group.key + name).joinToString(".")
-
-        fun toText(): Text {
-            return Text.literal(key).append(" -> ").append(textValue(value))
+    val parentConfig: BetterConfig<*>
+        get() {
+            var current: ConfigGroup? = this
+            while (current != null) {
+                if (current is BetterConfig<*>) {
+                    return current
+                }
+                current = current.parent
+            }
+            throw IllegalStateException("ConfigGroup has no parent config")
         }
-
+    inline fun <reified T, reified U> setting(
+        name: String,
+        default: T,
+        brigadierType: ArgumentType<U>?,
+        comment: String? = null,
+        noinline brigadierDeserializer: (U) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
+        noinline textValue: (T) -> Text = { Text.literal(it.toString()) as Text },
+        noinline serializer: (T) -> Any? = { it },
+        noinline deserializer: (Any?) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
+        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
+        noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
+    ): ConfigItem<T, U> {
+        val configItem = ConfigItem(
+            name,
+            this,
+            comment,
+            textValue,
+            default,
+            serializer,
+            deserializer,
+            brigadierType,
+            brigadierDeserializer,
+            brigadierFilter,
+            brigadierSuggestor,
+        )
+        configItems[configItem.key] = configItem as ConfigItem<Any, Any>
+        return configItem
     }
+
+    fun group(group: String, comment: String? = null): ConfigGroup {
+        val configGroup = ConfigGroup(group, this, comment)
+        configGroups.add(configGroup)
+        return configGroup
+    }
+
+    open fun write(writeParent: Boolean = true) {
+        parentConfig.configToml.setComment(key, comment)
+        if (writeParent) {
+            parent?.write()
+        }
+    }
+
+    fun writeAll() {
+        write(false)
+        configGroups.forEach { it.writeAll() }
+    }
+
+    open fun save() {
+        write()
+        parentConfig.save()
+    }
+
+    val key: List<String>
+        get() = if (this is BetterConfig<*>) listOf() else (parent?.key ?: listOf()) + name
+}
+
+@Suppress("UNUSED")
+data class ConfigItem<T, U>(
+    val name: String,
+    val group: ConfigGroup,
+    var comment: String?,
+    val textValue: (T) -> Text,
+
+
+    @Suppress("MemberVisibilityCanBePrivate")
+    val default: T,
+
+    val serializer: (T) -> Any?,
+    val deserializer: (Any?) -> T,
+
+    val brigadierType: ArgumentType<U>?,
+    val brigadierDesierializer: (U) -> T,
+    val brigadierFilter: (CommandSource, U) -> Boolean,
+    val suggestor: BrigadierSuggestor<CommandSource>?
+) {
+
+    private fun loadValue(): T {
+        return deserializer(group.parentConfig.configToml.get(tomlKey))
+    }
+
+    fun write(writeParent: Boolean = true): T {
+        group.parentConfig.configToml.set<Any>(tomlKey, default?.let { serializer(it) })
+        group.parentConfig.configToml.setComment(tomlKey, comment)
+        group.write(writeParent)
+        return default
+    }
+
+    var value: T = loadValue() ?: write()
+        set(value) {
+            field = value
+            group.parentConfig.save(this)
+        }
+
+    fun reset() {
+        value = default
+    }
+
+    private val tomlKey: List<String>
+        get() = group.key + name
+
+    val key: String
+        get() = (group.key + name).joinToString(".")
+
+    fun toText(): Text {
+        return Text.literal(key).append(" -> ").append(textValue(value))
+    }
+
 }
 
 

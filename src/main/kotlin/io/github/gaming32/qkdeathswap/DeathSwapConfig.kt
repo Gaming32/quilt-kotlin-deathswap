@@ -2,6 +2,7 @@ package io.github.gaming32.qkdeathswap
 
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.entity.player.PlayerInventory
@@ -9,6 +10,7 @@ import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.NbtList
+import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
@@ -22,10 +24,12 @@ import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
+private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translatable("argument.enum.invalid", it) }
+
 open class DeathSwapConfig(
     configToml: CommentedConfig,
     saveStreamer: () -> OutputStream?
-) : BetterConfig<DeathSwapConfig>(configToml, saveStreamer) {
+) : BetterConfig<DeathSwapConfig>("Quilt Deathswap Config", configToml, saveStreamer) {
     companion object DeathSwapConfigStatic : DeathSwapConfig(
         if (DeathSwapMod.configFile.exists()) {
             DeathSwapMod.configFile.inputStream().use {
@@ -72,7 +76,7 @@ open class DeathSwapConfig(
     )
 
     var swapTime: IntRange
-        get() = minSwapTime.value!!..maxSwapTime.value!!
+        get() = minSwapTime.value..maxSwapTime.value
         set(range) {
             minSwapTime.value = range.first
             maxSwapTime.value = range.last
@@ -98,7 +102,7 @@ open class DeathSwapConfig(
     )
 
     var spreadDistance: IntRange
-        get() = minSpreadDistance.value!!..maxSpreadDistance.value!!
+        get() = minSpreadDistance.value..maxSpreadDistance.value
         set(range) {
             minSpreadDistance.value = range.first
             maxSpreadDistance.value = range.last
@@ -221,12 +225,14 @@ open class DeathSwapConfig(
     }
 
     override fun copyFrom(other: DeathSwapConfig) {
+        val debug = enableDebug.value
         super.copyFrom(other)
         defaultKit = loadKit()
+        enableDebug.value = debug
     }
 
-    fun save() {
-        save(null)
+    override fun save() {
+        super.save()
         writeDefaultKit()
     }
 }
