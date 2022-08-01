@@ -275,38 +275,31 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-//            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
-//                if (DeathSwapStateManager.hasBegun()) {
-//                    if (origin.method_44013() == DimensionTypes.THE_END) {
-//                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
-//                            // Teleport player so they arn't at spawn in the overworld
-//                            val holder = DeathSwapStateManager.livingPlayers[player.uuid];
-//                            if (holder != null) {
-//                                val loc = holder.startLocation
-//                                if (holder.startLocation.world == destination) {
-//                                    player.teleport(
-//                                        loc.world,
-//                                        loc.x.toDouble(),
-//                                        loc.y.toDouble(),
-//                                        loc.z.toDouble(),
-//                                        0f, 0f
-//                                    )
-//                                } else {
-//                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
-//                                    while (!loc.tick()) {}
-//                                    player.teleport(
-//                                        newLoc.world,
-//                                        newLoc.x.toDouble(),
-//                                        newLoc.y.toDouble(),
-//                                        newLoc.z.toDouble(),
-//                                        0f, 0f
-//                                    )
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
+            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
+                if (DeathSwapStateManager.hasBegun()) {
+                    if (origin.method_44013() == DimensionTypes.THE_END) {
+                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
+                            // Teleport player so they aren't at spawn in the overworld
+                            val holder = DeathSwapStateManager.livingPlayers[player.uuid]
+                            if (holder != null) {
+                                val loc = holder.startLocation
+                                if (holder.startLocation.world != destination) {
+                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
+                                    while (!loc.tick()) {}
+                                    player.teleport(
+                                        newLoc.world,
+                                        newLoc.x.toDouble(),
+                                        newLoc.y.toDouble(),
+                                        newLoc.z.toDouble(),
+                                        0f, 0f
+                                    )
+                                }
+                                // else is handled by the setspawn code on itemcount's branch
+                            }
+                        }
+                    }
+                }
+            }
 
         }
 
