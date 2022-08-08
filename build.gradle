@@ -10,11 +10,14 @@ group = project.maven_group
 
 repositories {
 	mavenCentral()
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	maven { url 'https://jitpack.io' }
+//	maven {
+//		name = "Modrinth"
+//		url = "https://api.modrinth.com/maven"
+//		content {
+//			includeGroup "maven.modrinth"
+//		}
+//	}
 }
 
 // All the dependencies are declared at gradle/libs.version.toml and referenced with "libs.<id>"
@@ -34,6 +37,16 @@ dependencies {
 	// modImplementation libs.bundles.quilted.fabric.api // If you wish to use Fabric API's deprecated modules, you can replace the above line with this one
 	modImplementation "org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:0.1.0+"
 	include "org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:0.1.0+"
+
+	modCompileOnly 'com.github.qouteall.ImmersivePortalsMod:imm_ptl_core:v2.0.5-1.19', {
+		exclude(group: "net.fabricmc.fabric-api")
+		transitive(false)
+	}
+	modImplementation ('com.github.qouteall.ImmersivePortalsMod:q_misc_util:v2.0.5-1.19'){
+		exclude(group: "net.fabricmc.fabric-api")
+		transitive(false)
+	}
+//	modLocalRuntime 'maven.modrinth:immersiveportals:2.0.5-1.19'
 }
 
 processResources {

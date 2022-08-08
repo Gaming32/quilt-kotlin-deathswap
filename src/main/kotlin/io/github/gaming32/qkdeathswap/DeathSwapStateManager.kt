@@ -1,5 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
+import io.github.gaming32.qkdeathswap.imm_ptrl.ImmPtrlSwapForward
 import net.minecraft.command.CommandException
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.ItemEntity
@@ -18,6 +19,7 @@ import net.minecraft.util.registry.Registry
 import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
+import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import java.text.DecimalFormat
 import java.util.UUID
@@ -95,7 +97,7 @@ object DeathSwapStateManager {
         timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
-    private fun removePlayer(player: UUID, reason: Text) {
+    fun removePlayer(player: UUID, reason: Text) {
         val holder = livingPlayers.remove(player) ?: return
         holder.server.broadcast(holder.displayName.copy().formatted(Formatting.GREEN).append(reason))
         if (livingPlayers.size < 2) {
@@ -171,9 +173,16 @@ object DeathSwapStateManager {
             return
         }
 
-        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value!!) {
+        if ((timeSinceLastSwap - timeToSwap) > DeathSwapConfig.teleportLoadTime.value!!) {
+            server.broadcast("Swapping!")
+            for (player in toRemove) {
+                removePlayer(player, Text.literal(" timed out during swap").formatted(Formatting.RED))
+            }
+            toRemove.clear()
             swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
+            timeSinceLastSwap = 0
+            timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
             state = GameState.STARTED
         }
 
@@ -262,6 +271,15 @@ object DeathSwapStateManager {
         }
     }
 
+    val toRemove = mutableListOf<UUID>()
+    private fun createSwapForward(thisPlayer: ServerPlayerEntity, otherPlayer: ServerPlayerEntity): SwapForward {
+        return if (QuiltLoader.isModLoaded("imm_ptl_core")) {
+            ImmPtrlSwapForward(thisPlayer, otherPlayer)
+        } else {
+            SwapForward(thisPlayer, otherPlayer)
+        }
+    }
+
     private fun beginSwap(server: MinecraftServer) {
         if (DeathSwapConfig.gameMode.value?.limitedSwapCount == true
             && swapCount++ >= (DeathSwapConfig.swapLimit.value ?: DeathSwapConfig.swapLimit.default!!)
@@ -269,8 +287,6 @@ object DeathSwapStateManager {
             endGame(server)
             return
         }
-
-        server.broadcast("Swapping!")
 
         if (DeathSwapConfig.destroyItemsDuringSwap.value == true) {
             for (world in server.worlds) {
@@ -283,7 +299,7 @@ object DeathSwapStateManager {
         val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
             val entity = player.value.player
             if (entity == null) {
-                removePlayer(player.key, Text.literal(" timed out during swap").formatted(Formatting.RED))
+                toRemove.add(player.key)
             }
             entity
         }
@@ -295,14 +311,11 @@ object DeathSwapStateManager {
         swapTargets.clear()
 
         for (i in 1 until shuffledPlayers.size) {
-            swapTargets.add(SwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
+            swapTargets.add(createSwapForward(shuffledPlayers[i - 1], shuffledPlayers[i]))
         }
-        swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
+        swapTargets.add(createSwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
         state = GameState.TELEPORTING
         swapTargets.forEach { it.preSwap() }
-
-        timeSinceLastSwap = 0
-        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
     fun onInventoryChanged(player: ServerPlayerEntity, stack: ItemStack) {

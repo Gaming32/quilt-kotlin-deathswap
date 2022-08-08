@@ -10,8 +10,8 @@ import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.math.Vec3d
 
-class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPlayer: ServerPlayerEntity) {
-    private val pos = nextPlayer.location
+open class SwapForward(protected val thisPlayer: ServerPlayerEntity, private val nextPlayer: ServerPlayerEntity) {
+    protected val pos = nextPlayer.location
 
     private val vehicle = nextPlayer.vehicle
 
@@ -48,7 +48,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         }
     }
 
-    fun preSwap() {
+    open fun preSwap() {
         val pos = Location(
             pos.world,
             pos.x,
@@ -72,7 +72,10 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         thisPlayer.spawnLocation = pos
     }
 
-    fun swap(moreThanTwoPlayers: Boolean) {
+    open fun swap(moreThanTwoPlayers: Boolean) {
+        if (thisPlayer.server.playerManager.getPlayer(thisPlayer.uuid) != thisPlayer) {
+            DeathSwapStateManager.removePlayer(thisPlayer.uuid, Text.literal(" timed out during swap").formatted(Formatting.RED))
+        }
         DeathSwapStateManager.livingPlayers[thisPlayer.uuid]?.startLocation = nextStartLocation
         thisPlayer.velocity = Vec3d.ZERO
         thisPlayer.fallDistance = 0f
