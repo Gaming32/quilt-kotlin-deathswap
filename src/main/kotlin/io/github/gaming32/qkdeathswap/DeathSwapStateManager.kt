@@ -173,7 +173,7 @@ object DeathSwapStateManager {
             return
         }
 
-        if ((timeSinceLastSwap - timeToSwap) > DeathSwapConfig.teleportLoadTime.value!!) {
+        if (timeSinceLastSwap > timeToSwap) {
             server.broadcast("Swapping!")
             for (player in toRemove) {
                 removePlayer(player, Text.literal(" timed out during swap").formatted(Formatting.RED))
@@ -186,7 +186,7 @@ object DeathSwapStateManager {
             state = GameState.STARTED
         }
 
-        if (timeSinceLastSwap > timeToSwap) {
+        if (timeSinceLastSwap > timeToSwap - DeathSwapConfig.teleportLoadTime.value!! && state != GameState.TELEPORTING) {
             beginSwap(server)
         }
 
