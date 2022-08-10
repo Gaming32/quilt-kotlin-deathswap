@@ -19,6 +19,8 @@ import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.execute
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.io.OutputStream
 import java.util.concurrent.CompletableFuture
 
@@ -36,6 +38,9 @@ abstract class BetterConfig<T : BetterConfig<T>>(
 
     private val saveStreamer: () -> OutputStream?
 ) : ConfigGroup(displayName, null, null) {
+
+    @ApiStatus.Internal
+    val LOGGER: Logger = LoggerFactory.getLogger(BetterConfig::class.java)
 
     override fun save() {
         save(null)
@@ -171,8 +176,15 @@ open class ConfigGroup(
         comment: String? = null,
         noinline brigadierDeserializer: (U) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
         noinline textValue: (T) -> Text = { Text.literal(it.toString()) as Text },
-        noinline serializer: (T) -> Any? = { it },
-        noinline deserializer: (Any?) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
+        noinline serializer: (T) -> Any = { it!! },
+        noinline deserializer: (Any) -> T = {
+            if (it is T)
+                it
+            else {
+                parentConfig.LOGGER.warn("Invalid type for arg $name, expected ${T::class.simpleName} got ${it::class.simpleName}")
+                default
+            }
+        },
         noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
         noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
     ): ConfigItem<T, U> {
@@ -231,8 +243,8 @@ data class ConfigItem<T, U>(
     @Suppress("MemberVisibilityCanBePrivate")
     val default: T,
 
-    val serializer: (T) -> Any?,
-    val deserializer: (Any?) -> T,
+    val serializer: (T) -> Any,
+    val deserializer: (Any) -> T,
 
     val brigadierType: ArgumentType<U>?,
     val brigadierDesierializer: (U) -> T,
@@ -241,7 +253,11 @@ data class ConfigItem<T, U>(
 ) {
 
     private fun loadValue(): T {
-        return deserializer(group.parentConfig.configToml.get(tomlKey))
+        return if (group.parentConfig.configToml.contains(tomlKey)) {
+            deserializer(group.parentConfig.configToml.get(tomlKey))
+        } else {
+            default
+        }
     }
 
     fun write(writeParent: Boolean = true) {
@@ -250,7 +266,7 @@ data class ConfigItem<T, U>(
         group.write(writeParent)
     }
 
-    var value: T = loadValue() ?: default
+    var value: T = loadValue()
         set(value) {
             field = value
             group.parentConfig.save(this)
