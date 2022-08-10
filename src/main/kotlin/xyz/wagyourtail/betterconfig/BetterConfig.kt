@@ -176,14 +176,12 @@ open class ConfigGroup(
         comment: String? = null,
         noinline brigadierDeserializer: (U) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
         noinline textValue: (T) -> Text = { Text.literal(it.toString()) as Text },
-        noinline serializer: (T) -> Any? = { it },
-        noinline deserializer: (Any?) -> T = {
+        noinline serializer: (T) -> Any = { it!! },
+        noinline deserializer: (Any) -> T = {
             if (it is T)
                 it
-             else if (null is T)
-                it as T
             else {
-                parentConfig.LOGGER.warn("Invalid type for arg $name, expected ${T::class.simpleName} got ${if (it == null) null else it::class.simpleName}")
+                parentConfig.LOGGER.warn("Invalid type for arg $name, expected ${T::class.simpleName} got ${it::class.simpleName}")
                 default
             }
         },
@@ -245,8 +243,8 @@ data class ConfigItem<T, U>(
     @Suppress("MemberVisibilityCanBePrivate")
     val default: T,
 
-    val serializer: (T) -> Any?,
-    val deserializer: (Any?) -> T,
+    val serializer: (T) -> Any,
+    val deserializer: (Any) -> T,
 
     val brigadierType: ArgumentType<U>?,
     val brigadierDesierializer: (U) -> T,
