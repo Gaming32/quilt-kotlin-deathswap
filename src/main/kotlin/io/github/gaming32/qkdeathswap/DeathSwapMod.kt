@@ -1,6 +1,8 @@
 package io.github.gaming32.qkdeathswap
 
+import io.github.gaming32.qkdeathswap.DeathSwapConfig.DeathSwapConfigStatic.writeDefaultKit
 import io.github.gaming32.qkdeathswap.mixin.ScoreboardCriterionAccessor
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.command.CommandSource
@@ -19,10 +21,12 @@ import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.ScreenHandlerType
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
+import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.*
@@ -232,7 +236,7 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                     }
-                    if (DeathSwapConfig.enableDebug.value == true) {
+                    if (DeathSwapConfig.enableDebug.value) {
                         required(literal("debug")) {
                             required(literal("swap_now")) {
                                 execute {
@@ -252,7 +256,7 @@ object DeathSwapMod : ModInitializer {
             }
 
             ALLOW_DEATH.register { player, _, _ ->
-                if (!DeathSwapStateManager.hasBegun() || DeathSwapConfig.gameMode.value.allowDeath == true) {
+                if (!DeathSwapStateManager.hasBegun() || DeathSwapConfig.gameMode.value.allowDeath) {
                     return@register true
                 }
                 val shouldCancelDeathScreen = DeathSwapStateManager.livingPlayers.size > 2
@@ -286,38 +290,31 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-//            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
-//                if (DeathSwapStateManager.hasBegun()) {
-//                    if (origin.method_44013() == DimensionTypes.THE_END) {
-//                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
-//                            // Teleport player so they arn't at spawn in the overworld
-//                            val holder = DeathSwapStateManager.livingPlayers[player.uuid];
-//                            if (holder != null) {
-//                                val loc = holder.startLocation
-//                                if (holder.startLocation.world == destination) {
-//                                    player.teleport(
-//                                        loc.world,
-//                                        loc.x.toDouble(),
-//                                        loc.y.toDouble(),
-//                                        loc.z.toDouble(),
-//                                        0f, 0f
-//                                    )
-//                                } else {
-//                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
-//                                    while (!loc.tick()) {}
-//                                    player.teleport(
-//                                        newLoc.world,
-//                                        newLoc.x.toDouble(),
-//                                        newLoc.y.toDouble(),
-//                                        newLoc.z.toDouble(),
-//                                        0f, 0f
-//                                    )
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
+            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
+                if (DeathSwapStateManager.hasBegun()) {
+                    if (origin.method_44013() == DimensionTypes.THE_END) {
+                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
+                            // Teleport player so they aren't at spawn in the overworld
+                            val holder = DeathSwapStateManager.livingPlayers[player.uuid]
+                            if (holder != null) {
+                                val loc = holder.startLocation
+                                if (holder.startLocation.world != destination) {
+                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
+                                    while (!loc.tick()) {}
+                                    player.teleport(
+                                        newLoc.world,
+                                        newLoc.x.toDouble(),
+                                        newLoc.y.toDouble(),
+                                        newLoc.z.toDouble(),
+                                        0f, 0f
+                                    )
+                                }
+                                // else is handled by the setspawn code on itemcount's branch
+                            }
+                        }
+                    }
+                }
+            }
 
         }
 
@@ -331,55 +328,44 @@ object DeathSwapMod : ModInitializer {
                 playerInventory: PlayerInventory,
                 playerEntity: PlayerEntity
             ): ScreenHandler {
-                val screenHandler = GenericContainerScreenHandler(
+                val screenHandler = object : GenericContainerScreenHandler(
                     ScreenHandlerType.GENERIC_9X5,
                     syncId,
                     playerInventory,
-                    object : SimpleInventory(9 * 5) {
-                        override fun onClose(player: PlayerEntity) {
-                            for (i in 0 until 4) {
-                                for (j in 0 until 9) {
-                                    kit.setStack(
-                                        i * 9 + j,
-                                        getStack((4 - i) * 9 + j).copy()
-                                    )
-                                }
-                            }
-                            for (i in 0 until 5) {
-                                kit.setStack(36 + i, getStack(i).copy())
-                            }
-                            DeathSwapConfig.writeDefaultKit()
-                        }
-
-                        var recursiveDirty = false
-                        override fun markDirty() {
-                            if (recursiveDirty) return
-                            super.markDirty()
-                            recursiveDirty = true
-                            for (i in 5 until 9) {
-                                setStack(i, ItemStack(Items.BARRIER))
-                            }
-                            recursiveDirty = false
-                        }
-
-                        override fun removeStack(slot: Int): ItemStack =
-                            if (slot in 5 until 9) ItemStack.EMPTY
-                            else super.removeStack(slot)
-
-                        override fun removeStack(slot: Int, amount: Int): ItemStack =
-                            if (slot in 5 until 9) ItemStack.EMPTY
-                            else super.removeStack(slot, amount)
-
-                        override fun setStack(slot: Int, stack: ItemStack?) {
-                            if (stack?.item == Items.BARRIER) {
-                                super.setStack(slot, stack?.apply { count = 1 })
-                                return
-                            }
-                            if (slot !in 5 until 9) super.setStack(slot, stack)
-                        }
-                    },
+                    SimpleInventory(9 * 5),
                     5
-                )
+                ) {
+                    override fun onSlotClick(
+                        slotIndex: Int,
+                        button: Int,
+                        actionType: SlotActionType?,
+                        player: PlayerEntity?
+                    ) {
+                        if (slotIndex in 5 until 9) {
+                            cursorStack = ItemStack.EMPTY
+                            updateToClient()
+                            return
+                        }
+                        super.onSlotClick(slotIndex, button, actionType, player)
+                    }
+
+                    override fun close(player: PlayerEntity) {
+                        for (i in 0 until 4) {
+                            for (j in 0 until 9) {
+                                kit.setStack(
+                                    i * 9 + j,
+                                    getSlot((4 - i) * 9 + j).stack.copy()
+                                )
+                            }
+                        }
+                        for (i in 0 until 5) {
+                            kit.setStack(36 + i, getSlot(i).stack.copy())
+                        }
+                        if (kit == DeathSwapConfig.defaultKit) {
+                            writeDefaultKit()
+                        }
+                    }
+                }
                 for (i in 0 until 4) {
                     for (j in 0 until 9) {
                         screenHandler.inventory.setStack(
