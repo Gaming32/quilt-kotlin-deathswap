@@ -38,26 +38,23 @@ object Presets {
         } else {
             val internalPath = "/assets/${MOD_ID}/presets/${preset}"
             val internalFile = "$internalPath/deathswap.toml"
-            Presets::class.java.getResourceAsStream(internalFile).use { configStream ->
-                return if (configStream != null) {
-                    val kitPreset = "$internalPath/default_kit.dat"
-                    Presets::class.java.getResourceAsStream(kitPreset).use { kitFileInputStream ->
-                        if (kitFileInputStream != null) {
-                            Files.copy(
-                                kitFileInputStream,
-                                DeathSwapMod.configDir.resolve("default_kit.dat"),
-                                StandardCopyOption.REPLACE_EXISTING
-                            )
-                        } else {
-                            DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
-                        }
+            Presets::class.java.getResourceAsStream(internalFile)?.use { configStream ->
+                val kitPreset = "$internalPath/default_kit.dat"
+                Presets::class.java.getResourceAsStream(kitPreset).use { kitFileInputStream ->
+                    if (kitFileInputStream != null) {
+                        Files.copy(
+                            kitFileInputStream,
+                            DeathSwapMod.configDir.resolve("default_kit.dat"),
+                            StandardCopyOption.REPLACE_EXISTING
+                        )
+                    } else {
+                        DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
                     }
-                    DeathSwapConfig.copyFrom(DeathSwapConfig(configStream))
-                    true
-                } else {
-                    false
                 }
+                DeathSwapConfig.copyFrom(DeathSwapConfig(configStream))
+                return true
             }
+            return false
         }
     }
 

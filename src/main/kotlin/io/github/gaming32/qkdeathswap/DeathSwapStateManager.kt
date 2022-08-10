@@ -75,11 +75,11 @@ object DeathSwapStateManager {
         var playerAngle = Random.nextDouble(0.0, PI * 2)
         val playerAngleChange = PI * 2 / server.allPlayers.size
         server.allPlayers.forEach { player ->
-            val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.value!!.toDouble(), DeathSwapConfig.maxSpreadDistance.value!!.toDouble())
+            val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.value.toDouble(), DeathSwapConfig.maxSpreadDistance.value.toDouble())
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
             livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getWorld(RegistryKey.of(Registry.WORLD_KEY, DeathSwapConfig.dimension.value!!)) ?: server.getWorld(World.OVERWORLD)!!,
+                server.getWorld(RegistryKey.of(Registry.WORLD_KEY, DeathSwapConfig.dimension.value)) ?: server.getWorld(World.OVERWORLD)!!,
                 x,
                 z
             ))
@@ -171,7 +171,7 @@ object DeathSwapStateManager {
             return
         }
 
-        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value!!) {
+        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value) {
             swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
             state = GameState.STARTED
@@ -181,15 +181,15 @@ object DeathSwapStateManager {
             beginSwap(server)
         }
 
-        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value!!
+        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value
         if (withinWarnTime || timeSinceLastSwap % 20 == 0) {
             var text = Text.literal(
                 "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
             ).formatted(
-                if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime.value!!) Formatting.RED else Formatting.GREEN
+                if (timeSinceLastSwap >= DeathSwapConfig.minSwapTime.value) Formatting.RED else Formatting.GREEN
             )
 
-            if (DeathSwapConfig.gameMode.value?.limitedSwapCount == true) {
+            if (DeathSwapConfig.gameMode.value.limitedSwapCount) {
                 text = Text.literal("Swaps: $swapCount/${DeathSwapConfig.swapLimit.value} | ")
                     .formatted(Formatting.YELLOW)
                     .append(text)
@@ -233,7 +233,7 @@ object DeathSwapStateManager {
                     entity.addStatusEffect(
                         StatusEffectInstance(
                             StatusEffects.RESISTANCE,
-                            DeathSwapConfig.resistanceTime.value!!,
+                            DeathSwapConfig.resistanceTime.value,
                             255,
                             true,
                             false,
@@ -263,16 +263,14 @@ object DeathSwapStateManager {
     }
 
     private fun beginSwap(server: MinecraftServer) {
-        if (DeathSwapConfig.gameMode.value?.limitedSwapCount == true
-            && swapCount++ >= (DeathSwapConfig.swapLimit.value ?: DeathSwapConfig.swapLimit.default!!)
-        ) {
+        if (DeathSwapConfig.gameMode.value.limitedSwapCount && swapCount++ >= (DeathSwapConfig.swapLimit.value)) {
             endGame(server)
             return
         }
 
         server.broadcast("Swapping!")
 
-        if (DeathSwapConfig.destroyItemsDuringSwap.value == true) {
+        if (DeathSwapConfig.destroyItemsDuringSwap.value) {
             for (world in server.worlds) {
                 for (entity in world.getEntitiesByType(TypeFilter.instanceOf(ItemEntity::class.java)) { true }) {
                     entity.discard()
@@ -311,7 +309,7 @@ object DeathSwapStateManager {
         }
 
         livingPlayers[player.uuid]?.let { holder ->
-            if (DeathSwapConfig.craftingCountsTowardsItemCount.value == false && stack.item in holder.itemsCrafted) {
+            if (!DeathSwapConfig.craftingCountsTowardsItemCount.value && stack.item in holder.itemsCrafted) {
                 return@let
             }
             holder.itemsCollected += stack.item

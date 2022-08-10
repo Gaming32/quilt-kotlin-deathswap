@@ -32,7 +32,7 @@ private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translat
 open class DeathSwapConfig(
     configToml: CommentedConfig,
     saveStreamer: () -> OutputStream?
-) : BetterConfig<DeathSwapConfig>(configToml, saveStreamer) {
+) : BetterConfig<DeathSwapConfig>("Quilt Deathswap Config", configToml, saveStreamer) {
     companion object DeathSwapConfigStatic : DeathSwapConfig(
         if (DeathSwapMod.configFile.exists()) {
             DeathSwapMod.configFile.inputStream().use {
@@ -79,7 +79,7 @@ open class DeathSwapConfig(
     )
 
     var swapTime: IntRange
-        get() = minSwapTime.value!!..maxSwapTime.value!!
+        get() = minSwapTime.value..maxSwapTime.value
         set(range) {
             minSwapTime.value = range.first
             maxSwapTime.value = range.last
@@ -105,7 +105,7 @@ open class DeathSwapConfig(
     )
 
     var spreadDistance: IntRange
-        get() = minSpreadDistance.value!!..maxSpreadDistance.value!!
+        get() = minSpreadDistance.value..maxSpreadDistance.value
         set(range) {
             minSpreadDistance.value = range.first
             maxSpreadDistance.value = range.last
@@ -262,12 +262,14 @@ open class DeathSwapConfig(
     }
 
     override fun copyFrom(other: DeathSwapConfig) {
+        val debug = enableDebug.value
         super.copyFrom(other)
         defaultKit = loadKit()
+        enableDebug.value = debug
     }
 
-    fun save() {
-        save(null)
+    override fun save() {
+        super.save()
         writeDefaultKit()
     }
 }

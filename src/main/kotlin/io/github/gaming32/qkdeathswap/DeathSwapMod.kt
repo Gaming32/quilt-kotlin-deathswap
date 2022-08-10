@@ -1,7 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.mixin.ScoreboardCriterionAccessor
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.command.CommandSource
@@ -24,7 +23,6 @@ import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
-import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.*
@@ -254,7 +252,7 @@ object DeathSwapMod : ModInitializer {
             }
 
             ALLOW_DEATH.register { player, _, _ ->
-                if (!DeathSwapStateManager.hasBegun() || DeathSwapConfig.gameMode.value?.allowDeath == true) {
+                if (!DeathSwapStateManager.hasBegun() || DeathSwapConfig.gameMode.value.allowDeath == true) {
                     return@register true
                 }
                 val shouldCancelDeathScreen = DeathSwapStateManager.livingPlayers.size > 2
