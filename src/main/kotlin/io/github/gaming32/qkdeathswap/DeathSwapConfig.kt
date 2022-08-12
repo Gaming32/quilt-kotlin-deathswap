@@ -49,6 +49,14 @@ open class DeathSwapConfig(
         }
     )
 
+    private fun formatTime(value: Int): Text {
+        return if (value % 20 == 0) {
+            Text.literal("${value}t (${value / 20}s)")
+        } else {
+            Text.literal("${value}t (${value / 20.0}s)")
+        }
+    }
+
     constructor(input: InputStream, output: () -> OutputStream? = { null }) : this(TomlParser().parse(input), output)
 
     private val swapTimeGroup = group(
@@ -61,21 +69,24 @@ open class DeathSwapConfig(
         "min",
         20 * 60,
         TimeArgumentType.time(),
-        "The minimum time between swaps"
+        "The minimum time between swaps",
+        textValue = ::formatTime
     )
 
     val maxSwapTime = swapTimeGroup.setting(
         "max",
         20 * 180,
         TimeArgumentType.time(),
-        "The maximum time between swaps"
+        "The maximum time between swaps",
+        textValue = ::formatTime
     )
 
     val warnTime = swapTimeGroup.setting(
         "warn",
         0,
         TimeArgumentType.time(),
-        "The time before a swap that a warning will be sent to the player"
+        "The time before a swap that a warning will be sent to the player",
+        textValue = ::formatTime
     )
 
     var swapTime: IntRange
@@ -129,7 +140,8 @@ open class DeathSwapConfig(
         20 * 15,
         TimeArgumentType.time(),
         "The number of ticks of resistance players will get at the beginning of the deathswap\n" +
-                "Default 15 seconds"
+                "Default 15 seconds",
+        textValue = ::formatTime
     )
 
     private val swapOptionsGroup = group(
@@ -197,7 +209,8 @@ open class DeathSwapConfig(
         20 * 5,
         TimeArgumentType.time(),
         "The number of ticks it takes for the player to load after teleporting\n" +
-                "Default 5 seconds"
+                "Default 5 seconds",
+        textValue = ::formatTime
     )
 
     val enableDebug = setting<Boolean, Unit>(
