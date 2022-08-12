@@ -179,6 +179,7 @@ object DeathSwapStateManager {
                 removePlayer(player, Text.literal(" timed out during swap").formatted(Formatting.RED))
             }
             toRemove.clear()
+            swapTargets.forEach { it.preSwap() }
             swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
             timeSinceLastSwap = 0
@@ -315,7 +316,7 @@ object DeathSwapStateManager {
         }
         swapTargets.add(createSwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
         state = GameState.TELEPORTING
-        swapTargets.forEach { it.preSwap() }
+        swapTargets.forEach { it.preLoad() }
     }
 
     fun onInventoryChanged(player: ServerPlayerEntity, stack: ItemStack) {
