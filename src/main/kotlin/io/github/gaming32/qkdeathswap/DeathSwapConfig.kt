@@ -22,7 +22,7 @@ import xyz.wagyourtail.betterconfig.BetterConfig
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.StandardOpenOption
-import java.util.Arrays
+import java.util.*
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
@@ -229,7 +229,7 @@ open class DeathSwapConfig(
         brigadierSuggestor = { _, builder ->
             CommandSource.suggestMatching(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::asString), builder)
         },
-        serializer = { it?.asString() ?: "null" },
+        serializer = { it.asString() },
         deserializer = { input ->
             DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: DeathSwapGameMode.NORMAL
         }

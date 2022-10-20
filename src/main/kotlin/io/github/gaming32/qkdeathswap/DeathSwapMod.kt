@@ -70,8 +70,6 @@ object DeathSwapMod : ModInitializer {
     val itemCountCriterion = ScoreboardCriterionAccessor.callCreate("$MOD_ID:item_count")!!
 
     override fun onInitialize(mod: ModContainer) {
-
-
         if (!configDir.exists()) {
             configDir.toFile().mkdirs()
         }
@@ -79,7 +77,6 @@ object DeathSwapMod : ModInitializer {
         if (!presetsDir.exists()) {
             presetsDir.toFile().mkdirs()
         }
-
 
         registerEvents {
             onCommandRegistration { _, _ ->
