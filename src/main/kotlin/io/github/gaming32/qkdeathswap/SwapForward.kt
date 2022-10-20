@@ -23,9 +23,11 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val fireTicks = nextPlayer.fireTicks
     private val frozenTicks = nextPlayer.frozenTicks
 
-    private val statusEffects = if (DeathSwapConfig.swapPotionEffects) nextPlayer.activeStatusEffects else null
+    private val spawnPoint = nextPlayer.spawnLocation
 
-    private val angryMobs = if (DeathSwapConfig.swapMobAggression) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
+    private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value) nextPlayer.activeStatusEffects else null
+
+    private val angryMobs = if (DeathSwapConfig.swapMobAggression.value) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
 
     private val air = nextPlayer.air
 
@@ -35,7 +37,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
     private val nextStartLocation = DeathSwapStateManager.livingPlayers[nextPlayer.uuid]!!.startLocation
 
     init {
-        if (DeathSwapConfig.swapInventory) {
+        if (DeathSwapConfig.swapInventory.value) {
             val size = nextPlayer.inventory.size()
             inventory = mutableListOf()
             for (i in 0 until size) {
@@ -56,14 +58,18 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
             pos.pitch,
             pos.pose
         )
-        tempEntity = ArmorStandEntity(pos.world, pos.x, this.pos.y, pos.z).apply {
-            isInvulnerable = true
-            isInvisible = true
-            setNoGravity(true)
-            (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
+        val world = pos.getWorld(this.thisPlayer.server)
+        if (world != null) {
+            tempEntity = ArmorStandEntity(world, pos.x, this.pos.y, pos.z).apply {
+                isInvulnerable = true
+                isInvisible = true
+                setNoGravity(true)
+                (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
+            }
+            world.spawnEntity(tempEntity)
         }
-        pos.world?.spawnEntity(tempEntity)
         thisPlayer.teleport(pos)
+        thisPlayer.spawnLocation = pos
     }
 
     fun swap(moreThanTwoPlayers: Boolean) {
@@ -71,40 +77,43 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         thisPlayer.velocity = Vec3d.ZERO
         thisPlayer.fallDistance = 0f
 
-        thisPlayer.teleport(pos)
+        val targetPos = if (nextPlayer.isDead && spawnPoint != null) spawnPoint else pos
+
+        thisPlayer.teleport(targetPos)
+        thisPlayer.spawnLocation = spawnPoint
         tempEntity?.kill()
 
-        if (DeathSwapConfig.swapHealth) {
+        if (DeathSwapConfig.swapHealth.value) {
             thisPlayer.health = health
         }
-        if (DeathSwapConfig.swapHunger) {
+        if (DeathSwapConfig.swapHunger.value) {
             thisPlayer.hungerManager.foodLevel = food
             thisPlayer.hungerManager.saturationLevel = saturation
         }
         nextPlayer.stopRiding()
-        if (DeathSwapConfig.swapMount && vehicle != null) {
+        if (DeathSwapConfig.swapMount.value && vehicle != null) {
             thisPlayer.startRiding(vehicle, true)
         }
 
-        if (DeathSwapConfig.swapMobAggression) {
+        if (DeathSwapConfig.swapMobAggression.value) {
             swapMobAggression()
         }
-        if (DeathSwapConfig.swapFire) {
+        if (DeathSwapConfig.swapFire.value) {
             thisPlayer.fireTicks = fireTicks
         }
-        if (DeathSwapConfig.swapAir) {
+        if (DeathSwapConfig.swapAir.value) {
             thisPlayer.air = air
         }
-        if (DeathSwapConfig.swapFrozen) {
+        if (DeathSwapConfig.swapFrozen.value) {
             thisPlayer.frozenTicks = frozenTicks
         }
-        if (DeathSwapConfig.swapPotionEffects) {
+        if (DeathSwapConfig.swapPotionEffects.value) {
             thisPlayer.clearStatusEffects()
             statusEffects?.forEach {
                 thisPlayer.addStatusEffect(it.value)
             }
         }
-        if (DeathSwapConfig.swapInventory) {
+        if (DeathSwapConfig.swapInventory.value) {
             thisPlayer.inventory.clear()
             for (i in 0 until (inventory?.size ?: 0)) {
                 thisPlayer.inventory.setStack(i, inventory?.get(i) ?: ItemStack.EMPTY)

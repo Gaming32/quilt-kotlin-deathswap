@@ -1,280 +1,288 @@
 package io.github.gaming32.qkdeathswap
 
-import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
+import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.entity.player.PlayerInventory
+import net.minecraft.nbt.NbtCompound
+import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.NbtList
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import net.minecraft.util.registry.Registry
-import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.World
-import org.quiltmc.config.api.annotations.Comment
-import org.quiltmc.config.api.values.TrackedValue
-import org.quiltmc.loader.api.QuiltLoader
-import org.quiltmc.loader.api.config.QuiltConfig
+import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
+import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
+import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlParser
+import xyz.wagyourtail.betterconfig.BetterConfig
+import java.io.InputStream
+import java.io.OutputStream
+import java.nio.file.StandardOpenOption
+import java.util.Arrays
+import kotlin.io.path.exists
+import kotlin.io.path.inputStream
+import kotlin.io.path.outputStream
 
-fun formatConfigOption(
-    option: TrackedValue<*>,
-    valueType: Pair<ArgumentType<out Comparable<*>>, Function1<*, Any>>? = null
-): Text {
-    val value = option.value()
-    val displayText = Text.literal("${option.key()} -> $value")
-    if (value is Int && (valueType ?: (DeathSwapConfig.CONFIG_TYPES[option.key()]!!)).first is TimeArgumentType) {
-        if (value % 20 == 0) {
-            displayText.append(" (${value / 20}s)")
+private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translatable("argument.enum.invalid", it) }
+
+open class DeathSwapConfig(
+    configToml: CommentedConfig,
+    saveStreamer: () -> OutputStream?
+) : BetterConfig<DeathSwapConfig>("Quilt Deathswap Config", configToml, saveStreamer) {
+    companion object DeathSwapConfigStatic : DeathSwapConfig(
+        if (DeathSwapMod.configFile.exists()) {
+            DeathSwapMod.configFile.inputStream().use {
+                TomlParser().parse(it)
+            }
         } else {
-            displayText.append(" (${value / 20.0}s)")
+            TomlFormat.newConfig()
+        },
+        {
+            DeathSwapMod.configFile.outputStream(
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING
+            )
         }
-    }
-    return displayText
-}
-
-object DeathSwapConfig {
-    private val MIN_SWAP_TIME = TrackedValue.create(20 * 60, "min")!!
-    private val MAX_SWAP_TIME = TrackedValue.create(20 * 180, "max")!!
-    private val MIN_SPREAD_DISTANCE = TrackedValue.create(10_000, "min")!!
-    private val MAX_SPREAD_DISTANCE = TrackedValue.create(20_000, "max")!!
-    private val WARN_TIME = TrackedValue.create(0, "warn") { option ->
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The number of ticks before a swap to notify players"
-        ) }
-    }!!
-    private val DIMENSION = TrackedValue.create(World.OVERWORLD.value.toString(), "dimension") { option ->
-        option.constraint(IdentifierConstraint)
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The dimension in which deathswaps will take place, as a dimension identifier"
-        ) }
-    }!!
-    private val RESISTANCE_TIME = TrackedValue.create(20 * 30, "resistance_time") { option ->
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The number of ticks of resistance players will get at the beginning of the deathswap",
-            "Default 15 seconds"
-        ) }
-    }!!
-    private val SWAP_MOUNT = TrackedValue.create(true, "mount") { option ->
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The entity that the opponent is riding will stay ridden by the player on swap"
-        ) }
-    }!!
-    private val SWAP_HEALTH = TrackedValue.create(false, "health") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their health"
-        ) }
-    }!!
-    private val SWAP_MOB_AGGRESSION = TrackedValue.create(false, "mob_aggression") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their mob aggression"
-        ) }
-    }!!
-    private val SWAP_HUNGER = TrackedValue.create(false, "hunger") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their hunger"
-        ) }
-    }!!
-    private val SWAP_FIRE = TrackedValue.create(false, "fire") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their fire"
-        ) }
-    }!!
-    private val SWAP_AIR = TrackedValue.create(false, "air") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their air"
-        ) }
-    }!!
-    private val SWAP_FROZEN = TrackedValue.create(false, "frozen") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their frozen state"
-        ) }
-    }!!
-    private val SWAP_POTION_EFFECTS = TrackedValue.create(false, "potion_effects") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their potion effects"
-        ) }
-    }!!
-    private val SWAP_INVENTORY = TrackedValue.create(false, "inventory") {
-        option -> option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Whether players will swap their inventory"
-        ) }
-    }!!
-    private val TELEPORT_LOAD_TIME = TrackedValue.create(20 * 5, "teleport_load_time") { option ->
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "The number of ticks it takes for the player to load after teleporting",
-            "Default 5 seconds"
-        ) }
-    }
-    private val ENABLE_DEBUG = TrackedValue.create(QuiltLoader.isDevelopmentEnvironment(), "enable_debug") { option ->
-        option.metadata(Comment.TYPE) { comments -> comments.add(
-            "Enables the use of debug commands (/deathswap debug)"
-        ) }
-    }
-
-    val CONFIG = QuiltConfig.create(MOD_ID, "deathswap", consumerApply {
-        section("swap_time") { section ->
-            section.metadata(Comment.TYPE) { comments -> comments.add(
-                "The amount of time between swaps, in ticks",
-                "Default 1-3 minutes"
-            ) }
-            section.field(MIN_SWAP_TIME)
-            section.field(MAX_SWAP_TIME)
-            section.field(WARN_TIME)
-        }
-        section("spread_distance") { section ->
-            section.metadata(Comment.TYPE) { comments -> comments.add(
-                "The distance from 0,0 players are teleported to"
-            ) }
-            section.field(MIN_SPREAD_DISTANCE)
-            section.field(MAX_SPREAD_DISTANCE)
-        }
-        field(DIMENSION)
-        field(RESISTANCE_TIME)
-        section("swap_options") { section ->
-            section.field(SWAP_MOUNT)
-            section.field(SWAP_HEALTH)
-            section.field(SWAP_HUNGER)
-            section.field(SWAP_MOB_AGGRESSION)
-            section.field(SWAP_FIRE)
-            section.field(SWAP_AIR)
-            section.field(SWAP_FROZEN)
-            section.field(SWAP_POTION_EFFECTS)
-            section.field(SWAP_INVENTORY)
-        }
-        field(TELEPORT_LOAD_TIME)
-        field(ENABLE_DEBUG)
-    })!!
-
-    val CONFIG_TYPES = mapOf(
-        MIN_SWAP_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
-        MAX_SWAP_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
-        WARN_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
-        MIN_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
-        MAX_SPREAD_DISTANCE.key() to Pair(IntegerArgumentType.integer(0)) { v: Int -> v },
-        DIMENSION.key() to Pair(DimensionArgumentType.dimension()) { id: Identifier -> id.toString() },
-        RESISTANCE_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v },
-        SWAP_MOUNT.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_HEALTH.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_HUNGER.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_MOB_AGGRESSION.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_FIRE.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_AIR.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_FROZEN.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_POTION_EFFECTS.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        SWAP_INVENTORY.key() to Pair(BoolArgumentType.bool()) { v: Boolean -> v },
-        TELEPORT_LOAD_TIME.key() to Pair(TimeArgumentType.time()) { v: Int -> v }
     )
 
-    var minSwapTime: Int
-        get() = MIN_SWAP_TIME.value()
-        set(value) {
-            MIN_SWAP_TIME.setValue(value, true)
+    private fun formatTime(value: Int): Text {
+        return if (value % 20 == 0) {
+            Text.literal("${value}t (${value / 20}s)")
+        } else {
+            Text.literal("${value}t (${value / 20.0}s)")
+        }
+    }
+
+    constructor(input: InputStream, output: () -> OutputStream? = { null }) : this(TomlParser().parse(input), output)
+
+    private val swapTimeGroup = group(
+        "swap_time",
+        "The amount of time between swaps, in ticks\n" +
+                "Default 1-3 minutes"
+    )
+
+    val minSwapTime = swapTimeGroup.setting(
+        "min",
+        20 * 60,
+        TimeArgumentType.time(),
+        "The minimum time between swaps",
+        textValue = ::formatTime
+    )
+
+    val maxSwapTime = swapTimeGroup.setting(
+        "max",
+        20 * 180,
+        TimeArgumentType.time(),
+        "The maximum time between swaps",
+        textValue = ::formatTime
+    )
+
+    val warnTime = swapTimeGroup.setting(
+        "warn",
+        0,
+        TimeArgumentType.time(),
+        "The time before a swap that a warning will be sent to the player",
+        textValue = ::formatTime
+    )
+
+    var swapTime: IntRange
+        get() = minSwapTime.value..maxSwapTime.value
+        set(range) {
+            minSwapTime.value = range.first
+            maxSwapTime.value = range.last
         }
 
-    var maxSwapTime: Int
-        get() = MAX_SWAP_TIME.value()
-        set(value) {
-            MAX_SWAP_TIME.setValue(value, true)
+    private val spreadDistanceGroup = group(
+        "spread_distance",
+        "The distance from 0,0 players are teleported to"
+    )
+
+    val minSpreadDistance = spreadDistanceGroup.setting(
+        "min",
+        10_000,
+        IntegerArgumentType.integer(0),
+        "The minimum distance players are teleported to"
+    )
+
+    val maxSpreadDistance = spreadDistanceGroup.setting(
+        "max",
+        20_000,
+        IntegerArgumentType.integer(0),
+        "The maximum distance players are teleported to"
+    )
+
+    var spreadDistance: IntRange
+        get() = minSpreadDistance.value..maxSpreadDistance.value
+        set(range) {
+            minSpreadDistance.value = range.first
+            maxSpreadDistance.value = range.last
         }
 
-    val swapTime: IntRange
-        get() = minSwapTime..maxSwapTime
-
-    var warnTime: Int
-        get() = WARN_TIME.value()
-        set(value) {
-            WARN_TIME.setValue(value, true)
+    val dimension = setting("dimension",
+        World.OVERWORLD.value,
+        DimensionArgumentType.dimension(),
+        "The dimension players are teleported to",
+        serializer = { it.toString() },
+        deserializer = { (it as? String)?.let(::Identifier) },
+        brigadierFilter = { source, value ->
+            source.worldKeys.any {
+                it.value == value
+            }
         }
+    )
 
-    var minSpreadDistance: Int
-        get() = MIN_SPREAD_DISTANCE.value()
-        set(value) {
-            MIN_SPREAD_DISTANCE.setValue(value, true)
+    val resistanceTime = setting(
+        "resistance_time",
+        20 * 15,
+        TimeArgumentType.time(),
+        "The number of ticks of resistance players will get at the beginning of the deathswap\n" +
+                "Default 15 seconds",
+        textValue = ::formatTime
+    )
+
+    private val swapOptionsGroup = group(
+        "swap_options",
+        "Options for modifiers on the swap"
+    )
+
+    val swapMount = swapOptionsGroup.setting(
+        "mount",
+        true,
+        BoolArgumentType.bool()
+    )
+
+
+    val swapHealth = swapOptionsGroup.setting(
+        "health",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapMobAggression = swapOptionsGroup.setting(
+        "mob_aggression",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapHunger = swapOptionsGroup.setting(
+        "hunger",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapFire = swapOptionsGroup.setting(
+        "fire",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapAir = swapOptionsGroup.setting(
+        "air",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapFrozen = swapOptionsGroup.setting(
+        "frozen",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapPotionEffects = swapOptionsGroup.setting(
+        "potion_effects",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val swapInventory = swapOptionsGroup.setting(
+        "inventory",
+        false,
+        BoolArgumentType.bool()
+    )
+
+    val teleportLoadTime = setting(
+        "teleport_load_time",
+        20 * 5,
+        TimeArgumentType.time(),
+        "The number of ticks it takes for the player to load after teleporting\n" +
+                "Default 5 seconds",
+        textValue = ::formatTime
+    )
+
+    val enableDebug = setting<Boolean, Unit>(
+        "enable_debug",
+        false,
+        null
+    )
+
+    val gameMode = setting<DeathSwapGameMode, String>(
+        "game_mode",
+        DeathSwapGameMode.NORMAL,
+        StringArgumentType.word(),
+        brigadierDeserializer = { input ->
+            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: throw INVALID_ENUM_EXCEPTION.create(input)
+        },
+        brigadierSuggestor = { _, builder ->
+            CommandSource.suggestMatching(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::asString), builder)
+        },
+        serializer = { it?.asString() ?: "null" },
+        deserializer = { input ->
+            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: DeathSwapGameMode.NORMAL
         }
+    )
 
-    var maxSpreadDistance: Int
-        get() = MAX_SPREAD_DISTANCE.value()
-        set(value) {
-            MAX_SPREAD_DISTANCE.setValue(value, true)
+    val craftingCountsTowardsItemCount = setting(
+        "crafting_counts_towards_item_count",
+        true,
+        BoolArgumentType.bool(),
+    )
+
+    val destroyItemsDuringSwap = setting(
+        "destroy_items_during_swap",
+        false,
+        BoolArgumentType.bool(),
+    )
+
+    val swapLimit = setting(
+        "swap_limit",
+        10,
+        IntegerArgumentType.integer(1)
+    )
+
+    var defaultKit: PlayerInventory = loadKit()
+
+    private fun loadKit(): PlayerInventory {
+        return PlayerInventory(null).apply {
+            if (DeathSwapMod.defaultKitStoreLocation.exists()) {
+                readNbt(
+                    NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
+                        .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
+                )
+            }
         }
+    }
 
-    val spreadDistance: IntRange
-        get() = minSpreadDistance..maxSpreadDistance
+    fun writeDefaultKit() {
+        NbtIo.writeCompressed(NbtCompound().apply {
+            put("Inventory", NbtList().apply {
+                DeathSwapConfig.defaultKit.writeNbt(this)
+            })
+        }, DeathSwapMod.defaultKitStoreLocation)
+    }
 
-    var dimension: RegistryKey<World>
-        get() = RegistryKey.of(Registry.WORLD_KEY, Identifier(DIMENSION.value()))
-        set(value) {
-            DIMENSION.setValue(value.value.toString(), true)
-        }
+    override fun copyFrom(other: DeathSwapConfig) {
+        val debug = enableDebug.value
+        super.copyFrom(other)
+        defaultKit = loadKit()
+        enableDebug.value = debug
+    }
 
-    var resistanceTime: Int
-        get() = RESISTANCE_TIME.value()
-        set(value) {
-            RESISTANCE_TIME.setValue(value, true)
-        }
-
-    var swapMount: Boolean
-        get() = SWAP_MOUNT.value()
-        set(value) {
-            SWAP_MOUNT.setValue(value, true)
-        }
-
-    var swapHealth: Boolean
-        get() = SWAP_HEALTH.value()
-        set(value) {
-            SWAP_HEALTH.setValue(value, true)
-        }
-
-    var swapHunger: Boolean
-        get() = SWAP_HUNGER.value()
-        set(value) {
-            SWAP_HUNGER.setValue(value, true)
-        }
-
-    var swapMobAggression: Boolean
-        get() = SWAP_MOB_AGGRESSION.value()
-        set(value) {
-            SWAP_MOB_AGGRESSION.setValue(value, true)
-        }
-
-    var swapFire: Boolean
-        get() = SWAP_FIRE.value()
-        set(value) {
-            SWAP_FIRE.setValue(value, true)
-        }
-
-    var swapAir: Boolean
-        get() = SWAP_AIR.value()
-        set(value) {
-            SWAP_AIR.setValue(value, true)
-        }
-
-    var swapFrozen: Boolean
-        get() = SWAP_FROZEN.value()
-        set(value) {
-            SWAP_FROZEN.setValue(value, true)
-        }
-
-    var swapPotionEffects: Boolean
-        get() = SWAP_POTION_EFFECTS.value()
-        set(value) {
-            SWAP_POTION_EFFECTS.setValue(value, true)
-        }
-
-    var swapInventory: Boolean
-        get() = SWAP_INVENTORY.value()
-        set(value) {
-            SWAP_INVENTORY.setValue(value, true)
-        }
-
-    var teleportLoadTime: Int
-        get() = TELEPORT_LOAD_TIME.value()
-        set(value) {
-            TELEPORT_LOAD_TIME.setValue(value, true)
-        }
-
-    val enableDebug: Boolean
-        get() = ENABLE_DEBUG.value()
-
-    val defaultKit = PlayerInventory(null)
+    override fun save() {
+        super.save()
+        writeDefaultKit()
+    }
 }

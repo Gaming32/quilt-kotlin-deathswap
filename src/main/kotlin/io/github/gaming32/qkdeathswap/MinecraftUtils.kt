@@ -1,6 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.entity.Entity
 import net.minecraft.inventory.Inventory
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
@@ -19,10 +19,10 @@ fun MinecraftServer.broadcast(message: Text) {
 }
 
 val World.spawnLocation: Location
-    get() = Location(this, spawnPos.x.toDouble(), spawnPos.y.toDouble(), spawnPos.z.toDouble(), spawnAngle)
+    get() = Location(this, spawnPos, yaw = spawnAngle)
 
 fun ServerPlayerEntity.teleport(location: Location) {
-    val world = (location.world ?: world) as ServerWorld
+    val world = (location.getWorld(server) ?: world) as ServerWorld
 
     if (isSleeping) {
         wakeUp(true, true)
@@ -38,8 +38,20 @@ fun ServerPlayerEntity.teleport(location: Location) {
     )
 }
 
-val PlayerEntity.location: Location
+val Entity.location: Location
     get() = Location(world, x, y, z, yaw, pitch, pose)
+
+var ServerPlayerEntity.spawnLocation: Location?
+    get() = spawnPointPosition?.let { spawnPos ->
+        Location(server.getWorld(spawnPointDimension), spawnPos, yaw = spawnAngle)
+    }
+    set(location) {
+        if (location == null) {
+            setSpawnPoint(World.OVERWORLD, null, 0.0f, false, false)
+        } else {
+            setSpawnPoint(location.world ?: World.OVERWORLD, location.blockPos, location.yaw ?: 0.0f, true, false)
+        }
+    }
 
 fun ticksToMinutesSeconds(ticks: Int): String {
     val minutes = ticks / 1200
