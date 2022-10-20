@@ -2,9 +2,6 @@ package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.DeathSwapConfig.DeathSwapConfigStatic.writeDefaultKit
 import io.github.gaming32.qkdeathswap.mixin.ScoreboardCriterionAccessor
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
-import com.mojang.brigadier.arguments.ArgumentType
 import net.minecraft.command.CommandException
 import net.minecraft.command.CommandSource
 import net.minecraft.entity.player.PlayerEntity
@@ -22,7 +19,6 @@ import net.minecraft.screen.GenericContainerScreenHandler
 import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.ScreenHandlerType
-import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.screen.slot.SlotActionType
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.HoverEvent
@@ -35,11 +31,14 @@ import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.*
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.player
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.string
 import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.value
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.execute
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.register
+import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
 import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
 import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
@@ -64,11 +63,11 @@ object DeathSwapMod : ModInitializer {
     val configDir: Path = QuiltLoader.getConfigDir().resolve(MOD_ID)
     val configFile: Path = configDir.resolve("deathswap.toml")
 
-    val presetsDir = configDir.resolve("presets")
+    val presetsDir: Path = configDir.resolve("presets")
 
     val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
 
-    val itemCountCriterion = ScoreboardCriterionAccessor.callCreate("$MOD_ID:item_count")
+    val itemCountCriterion = ScoreboardCriterionAccessor.callCreate("$MOD_ID:item_count")!!
 
     override fun onInitialize(mod: ModContainer) {
 
