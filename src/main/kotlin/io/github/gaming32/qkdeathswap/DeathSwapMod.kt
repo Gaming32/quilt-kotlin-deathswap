@@ -1,8 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
 import com.mojang.brigadier.arguments.ArgumentType
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.ALLOW_DEATH
 import net.minecraft.command.CommandException
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.player.PlayerInventory
@@ -13,14 +11,20 @@ import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.NbtList
-import net.minecraft.network.MessageType
+import net.minecraft.network.PacketSendListener
+import net.minecraft.network.packet.s2c.play.DeathMessageS2CPacket
 import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
 import net.minecraft.screen.GenericContainerScreenHandler
 import net.minecraft.screen.NamedScreenHandlerFactory
 import net.minecraft.screen.ScreenHandler
 import net.minecraft.screen.ScreenHandlerType
 import net.minecraft.screen.slot.SlotActionType
+import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.text.HoverEvent
+import net.minecraft.text.ScreenTexts
+import net.minecraft.text.Style
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
@@ -37,9 +41,12 @@ import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
 import org.quiltmc.qkl.wrapper.qsl.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
+import org.quiltmc.qsl.entity_events.api.EntityReviveEvents.BEFORE_TOTEM
+import org.quiltmc.qsl.entity_events.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+
 
 const val MOD_ID = "qkdeathswap"
 
@@ -59,7 +66,7 @@ object DeathSwapMod : ModInitializer {
         }
 
         registerEvents {
-            onCommandRegistration { buildContext, environment ->
+            onCommandRegistration { _, _ ->
                 register("deathswap") {
                     requires { it.hasPermissionLevel(1) }
                     required(literal("start")) {
@@ -228,27 +235,53 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            ALLOW_DEATH.register { player, source, amount ->
+            BEFORE_TOTEM.register { entity, _ ->
+                if (entity !is ServerPlayerEntity) return@register false
                 if (!DeathSwapStateManager.hasBegun()) {
                     return@register true
                 }
-                val shouldCancelDeathScreen = DeathSwapStateManager.livingPlayers.size > 2
-                if (shouldCancelDeathScreen) {
-                    // Copy-paste (and cleanup/Kotlin conversion) from ServerPlayerEntity#onDeath
-                    if (player.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)) {
-                        val text = player.damageTracker.deathMessage
-                        val abstractTeam = player.scoreboardTeam
-                        if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                            player.server.playerManager.broadcastSystemMessage(text, MessageType.SYSTEM)
-                        } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
-                            player.server.playerManager.sendSystemMessageToTeam(player, text)
-                        } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
-                            player.server.playerManager.sendSystemMessageToOtherTeams(player, text)
-                        }
+                val showDeathMessages = entity.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)
+                if (showDeathMessages) {
+                    val text = entity.damageTracker.deathMessage
+                    entity.networkHandler
+                        .m_hezgjyfd(
+                            DeathMessageS2CPacket(entity.damageTracker, text),
+                            PacketSendListener.toSendIfFailed {
+                                val string = text.asTruncatedString(256)
+                                val text2 = Text.translatable(
+                                    "death.attack.message_too_long",
+                                    *arrayOf<Any>(
+                                        Text.literal(string).formatted(Formatting.YELLOW)
+                                    )
+                                )
+                                val text3 = Text.translatable(
+                                    "death.attack.even_more_magic",
+                                    *arrayOf(entity.displayName)
+                                )
+                                    .styled { style: Style ->
+                                        style.withHoverEvent(
+                                            HoverEvent(
+                                                HoverEvent.Action.SHOW_TEXT,
+                                                text2
+                                            )
+                                        )
+                                    }
+                                DeathMessageS2CPacket(entity.damageTracker, text3)
+                            }
+                        )
+                    val abstractTeam = entity.scoreboardTeam
+                    if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
+                        entity.server.playerManager.m_bgctehjy(text, false)
+                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
+                        entity.server.playerManager.sendSystemMessageToTeam(entity, text)
+                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
+                        entity.server.playerManager.sendSystemMessageToOtherTeams(entity, text)
                     }
+                } else {
+                    entity.networkHandler.sendPacket(DeathMessageS2CPacket(entity.damageTracker, ScreenTexts.EMPTY))
                 }
-                DeathSwapStateManager.removePlayer(player)
-                !shouldCancelDeathScreen
+                DeathSwapStateManager.removePlayer(entity)
+                !showDeathMessages
             }
 
             onServerTickEnd {
@@ -257,17 +290,17 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            onPlayReady { packetSender, server ->
+            onPlayReady { _, _ ->
                 if (DeathSwapStateManager.hasBegun() && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
                 }
             }
 
-            ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, origin, destination ->
+            AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
                 if (DeathSwapStateManager.hasBegun()) {
-                    if (origin.method_44013() == DimensionTypes.THE_END) {
+                    if (origin.m_fzgkmzuh() == DimensionTypes.THE_END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
-                            // Teleport player so they aren't at spawn in the overworld
+                            // Teleport player, so they aren't at spawn in the overworld
                             val holder = DeathSwapStateManager.livingPlayers[player.uuid]
                             if (holder != null) {
                                 val loc = holder.startLocation

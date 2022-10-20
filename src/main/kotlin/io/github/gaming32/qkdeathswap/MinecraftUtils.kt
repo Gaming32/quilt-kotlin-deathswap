@@ -2,7 +2,6 @@ package io.github.gaming32.qkdeathswap
 
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.inventory.Inventory
-import net.minecraft.network.MessageType
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.server.world.ServerWorld
@@ -16,7 +15,7 @@ fun MinecraftServer.broadcast(message: String) {
 }
 
 fun MinecraftServer.broadcast(message: Text) {
-    playerManager.broadcastSystemMessage(message, MessageType.SYSTEM)
+    playerManager.m_bgctehjy(message, false)
 }
 
 val World.spawnLocation: Location

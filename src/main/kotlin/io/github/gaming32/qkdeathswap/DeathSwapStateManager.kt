@@ -13,7 +13,7 @@ import net.minecraft.world.GameMode
 import net.minecraft.world.World
 import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
 import java.text.DecimalFormat
-import java.util.UUID
+import java.util.*
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -136,7 +136,7 @@ object DeathSwapStateManager {
             exhaustion = 0f
         }
         if (includeInventory) {
-            player.server.commandManager.execute(player.server.commandSource, "advancement revoke ${player.entityName} everything")
+            player.server.commandManager.executePrefixedCommand(player.server.commandSource, "advancement revoke ${player.entityName} everything")
             player.setExperienceLevel(0)
             player.setExperiencePoints(0)
             player.inventory.copyFrom(DeathSwapConfig.defaultKit)

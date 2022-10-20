@@ -31,9 +31,9 @@ class PlayerStartLocation(val world: ServerWorld, var x: Int, var z: Int) {
     }
 
     private fun ceilingSearch() {
-        val topY = world.dimension.logicalHeight + world.dimension.minimumY
+        val topY = world.dimension.logicalHeight + world.dimension.minY
         val blockPos = BlockPos.Mutable(x, 0, z)
-        for (i in topY downTo world.dimension.minimumY) {
+        for (i in topY downTo world.dimension.minY) {
             val state = world.getBlockState(blockPos.setY(i - 2))
             val solid = state.isSolidBlock(world, blockPos)
             if (world.getBlockState(blockPos.setY(i)).isAir && world.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && solid) {
@@ -48,7 +48,7 @@ class PlayerStartLocation(val world: ServerWorld, var x: Int, var z: Int) {
 
     private fun normalSearch() {
         y = (world.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf))
-        if (y != world.dimension.minimumY) {
+        if (y != world.dimension.minY) {
             ready = true
             return
         }

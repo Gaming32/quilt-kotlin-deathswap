@@ -1,7 +1,9 @@
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
+
 plugins {
-	id 'maven-publish'
+	id("maven-publish")
 	alias(libs.plugins.quilt.loom)
-	id 'org.jetbrains.kotlin.jvm' version '1.7.20'
+	id("org.jetbrains.kotlin.jvm") version "1.7.20"
 }
 
 archivesBaseName = project.archives_base_name
@@ -34,16 +36,16 @@ dependencies {
 	// QSL is not a complete API; You will need Quilted Fabric API to fill in the gaps.
 	// Quilted Fabric API will automatically pull in the correct QSL version.
 	modImplementation libs.quilted.fabric.api
-	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-	// modImplementation libs.bundles.quilted.fabric.api // If you wish to use Fabric API's deprecated modules, you can replace the above line with this one
+	implementation(kotlin("stdlib", KotlinCompilerVersion.VERSION))
+	// modImplementation libs.bundles.quilted.fabric.api // If you wish to use Fabric API"s deprecated modules, you can replace the above line with this one
 	modImplementation "org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:0.1.4+kt.1.7.20+flk.1.8.5-SNAPSHOT"
-	include "org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:0.1.4+kt.1.7.20+flk.1.8.5-SNAPSHOT"
+	include("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:0.1.4+kt.1.7.20+flk.1.8.5-SNAPSHOT")
 }
 
 processResources {
 	inputs.property "version", version
 
-	filesMatching('quilt.mod.json') {
+	filesMatching("quilt.mod.json") {
 		expand "version": version
 	}
 }
@@ -68,7 +70,7 @@ java {
 	// withJavadocJar()
 }
 
-// If you plan to use a different file for the license, don't forget to change the file name here!
+// If you plan to use a different file for the license, don"t forget to change the file name here!
 jar {
 	from("LICENSE") {
 		rename { "${it}_${archivesBaseName}" }
