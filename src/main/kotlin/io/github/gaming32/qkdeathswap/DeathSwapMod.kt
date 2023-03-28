@@ -31,19 +31,10 @@ import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.player
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.string
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.value
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.execute
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.register
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
-import org.quiltmc.qkl.wrapper.qsl.commands.onCommandRegistration
-import org.quiltmc.qkl.wrapper.qsl.lifecycle.onServerTickEnd
-import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
-import org.quiltmc.qkl.wrapper.qsl.networking.onPlayReady
-import org.quiltmc.qkl.wrapper.qsl.registerEvents
+import org.quiltmc.qkl.library.commands.onCommandRegistration
+import org.quiltmc.qkl.library.lifecycle.onServerTickEnd
+import org.quiltmc.qkl.library.networking.onPlayReady
+import org.quiltmc.qkl.library.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
 import org.quiltmc.qsl.entity_events.api.EntityReviveEvents.BEFORE_TOTEM
 import org.quiltmc.qsl.entity_events.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
@@ -269,7 +260,7 @@ object DeathSwapMod : ModInitializer {
                 if (showDeathMessages) {
                     val text = entity.damageTracker.deathMessage
                     entity.networkHandler
-                        .m_hezgjyfd(
+                        .method_14369(
                             DeathMessageS2CPacket(entity.damageTracker, text),
                             PacketSendListener.toSendIfFailed {
                                 val string = text.asTruncatedString(256)
@@ -296,7 +287,7 @@ object DeathSwapMod : ModInitializer {
                         )
                     val abstractTeam = entity.scoreboardTeam
                     if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                        entity.server.playerManager.m_bgctehjy(text, false)
+                        entity.server.playerManager.method_43514(text, false)
                     } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
                         entity.server.playerManager.sendSystemMessageToTeam(entity, text)
                     } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
@@ -323,7 +314,7 @@ object DeathSwapMod : ModInitializer {
 
             AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
                 if (DeathSwapStateManager.hasBegun()) {
-                    if (origin.m_fzgkmzuh() == DimensionTypes.THE_END) {
+                    if (origin.method_44013() == DimensionTypes.THE_END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                             // Teleport player, so they aren't at spawn in the overworld
                             val holder = DeathSwapStateManager.livingPlayers[player.uuid]
