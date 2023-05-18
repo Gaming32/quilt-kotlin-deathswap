@@ -68,7 +68,7 @@ open class DeathSwapConfig(
     val minSwapTime = swapTimeGroup.setting(
         "min",
         20 * 60,
-        TimeArgumentType.time(),
+        TimeArgumentType.of(),
         "The minimum time between swaps",
         textValue = ::formatTime
     )
@@ -76,7 +76,7 @@ open class DeathSwapConfig(
     val maxSwapTime = swapTimeGroup.setting(
         "max",
         20 * 180,
-        TimeArgumentType.time(),
+        TimeArgumentType.of(),
         "The maximum time between swaps",
         textValue = ::formatTime
     )
@@ -84,7 +84,7 @@ open class DeathSwapConfig(
     val warnTime = swapTimeGroup.setting(
         "warn",
         0,
-        TimeArgumentType.time(),
+        TimeArgumentType.of(),
         "The time before a swap that a warning will be sent to the player",
         textValue = ::formatTime
     )
@@ -138,7 +138,7 @@ open class DeathSwapConfig(
     val resistanceTime = setting(
         "resistance_time",
         20 * 15,
-        TimeArgumentType.time(),
+        TimeArgumentType.of(),
         "The number of ticks of resistance players will get at the beginning of the deathswap\n" +
                 "Default 15 seconds",
         textValue = ::formatTime
@@ -207,7 +207,7 @@ open class DeathSwapConfig(
     val teleportLoadTime = setting(
         "teleport_load_time",
         20 * 5,
-        TimeArgumentType.time(),
+        TimeArgumentType.of(),
         "The number of ticks it takes for the player to load after teleporting\n" +
                 "Default 5 seconds",
         textValue = ::formatTime

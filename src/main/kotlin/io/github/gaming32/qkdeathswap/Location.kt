@@ -1,12 +1,12 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.entity.EntityPose
+import net.minecraft.registry.RegistryKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec3d
 import net.minecraft.util.math.Vec3i
-import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.World
 
 data class Location(

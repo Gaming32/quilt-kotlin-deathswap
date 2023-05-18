@@ -64,6 +64,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
                 isInvulnerable = true
                 isInvisible = true
                 setNoGravity(true)
+                @Suppress("KotlinConstantConditions")
                 (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
             }
             world.spawnEntity(tempEntity)

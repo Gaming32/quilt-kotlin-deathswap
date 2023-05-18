@@ -31,13 +31,22 @@ import net.minecraft.world.GameRules
 import net.minecraft.world.dimension.DimensionTypes
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
+import org.quiltmc.qkl.library.brigadier.argument.literal
+import org.quiltmc.qkl.library.brigadier.argument.player
+import org.quiltmc.qkl.library.brigadier.argument.string
+import org.quiltmc.qkl.library.brigadier.argument.value
+import org.quiltmc.qkl.library.brigadier.execute
+import org.quiltmc.qkl.library.brigadier.optional
+import org.quiltmc.qkl.library.brigadier.register
+import org.quiltmc.qkl.library.brigadier.required
 import org.quiltmc.qkl.library.commands.onCommandRegistration
 import org.quiltmc.qkl.library.lifecycle.onServerTickEnd
+import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.onPlayReady
 import org.quiltmc.qkl.library.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
-import org.quiltmc.qsl.entity_events.api.EntityReviveEvents.BEFORE_TOTEM
-import org.quiltmc.qsl.entity_events.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
+import org.quiltmc.qsl.entity.event.api.EntityReviveEvents.BEFORE_TOTEM
+import org.quiltmc.qsl.entity.event.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -98,7 +107,7 @@ object DeathSwapMod : ModInitializer {
                     }
                     required(literal("presets")) {
                         required(literal("load")) {
-                            required(string("preset")) { presetAccess ->
+                            required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
                                         Presets.list(),
@@ -106,7 +115,7 @@ object DeathSwapMod : ModInitializer {
                                     )
                                 }
                                 execute {
-                                    val preset = presetAccess.invoke(this).value()
+                                    val preset = getPreset().value()
                                     if (Presets.load(preset)) {
                                         source.sendFeedback(Text.literal("Successfully loaded preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
                                     } else {
@@ -116,7 +125,7 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                         required(literal("delete")) {
-                            required(string("preset")) { presetAccess ->
+                            required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
                                         Presets.list(),
@@ -124,7 +133,7 @@ object DeathSwapMod : ModInitializer {
                                     )
                                 }
                                 execute {
-                                    val preset = presetAccess.invoke(this).value()
+                                    val preset = getPreset().value()
                                     if (Presets.delete(preset)) {
                                         source.sendFeedback(Text.literal("Successfully deleted preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
                                     } else {
@@ -138,9 +147,9 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                         required(literal("save")) {
-                            required(string("preset")) { presetAccess ->
+                            required(string("preset")) { getPreset ->
                                 execute {
-                                    val preset = presetAccess.invoke(this).value()
+                                    val preset = getPreset().value()
                                     try {
                                         Presets.save(preset)
                                         source.sendFeedback(
@@ -158,20 +167,20 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                         required(literal("preview")) {
-                            required(string("preset")) { presetAccess ->
+                            required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
                                     CommandSource.suggestMatching(
                                         Presets.list(),
                                         builder
                                     )
                                 }
-                                optional(literal("kit")) { kitAccess ->
+                                optional(literal("kit")) { getKit ->
                                     execute {
-                                        val preset = presetAccess.invoke(this).value()
-                                        if (kitAccess != null) {
+                                        val preset = getPreset().value()
+                                        if (getKit != null) {
                                             val kit = Presets.previewKit(preset)
                                             if (kit != null) {
-                                                viewKit(source.player, kit)
+                                                viewKit(source.playerOrThrow, kit)
                                             } else {
                                                 source.sendFeedback(Text.literal("No kit found for preset ").append(Text.literal(preset).formatted(Formatting.RED)).append(Text.literal(", or preset doesn't exist.")), false)
                                             }
@@ -204,9 +213,9 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                         required(literal("set_from_player")) {
-                            optional(player("player")) { player ->
+                            optional(player("player")) { getPlayer ->
                                 execute {
-                                    val actualPlayer = player?.invoke(this)?.value() ?: source.player
+                                    val actualPlayer = getPlayer?.invoke(this)?.value() ?: source.playerOrThrow
                                     DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
                                     DeathSwapConfig.writeDefaultKit()
                                     source.sendFeedback(
@@ -223,12 +232,12 @@ object DeathSwapMod : ModInitializer {
                         }
                         required(literal("load")) {
                             execute {
-                                source.player.inventory.copyFrom(DeathSwapConfig.defaultKit)
+                                source.playerOrThrow.inventory.copyFrom(DeathSwapConfig.defaultKit)
                             }
                         }
                         required(literal("view")) {
                             execute {
-                                viewKit(source.player, DeathSwapConfig.defaultKit)
+                                viewKit(source.playerOrThrow, DeathSwapConfig.defaultKit)
                             }
                         }
                     }
@@ -259,35 +268,34 @@ object DeathSwapMod : ModInitializer {
                 val showDeathMessages = entity.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)
                 if (showDeathMessages) {
                     val text = entity.damageTracker.deathMessage
-                    entity.networkHandler
-                        .method_14369(
-                            DeathMessageS2CPacket(entity.damageTracker, text),
-                            PacketSendListener.toSendIfFailed {
-                                val string = text.asTruncatedString(256)
-                                val text2 = Text.translatable(
-                                    "death.attack.message_too_long",
-                                    *arrayOf<Any>(
-                                        Text.literal(string).formatted(Formatting.YELLOW)
-                                    )
+                    entity.networkHandler.sendPacket(
+                        DeathMessageS2CPacket(entity.damageTracker, text),
+                        PacketSendListener.toSendIfFailed {
+                            val string = text.asTruncatedString(256)
+                            val text2 = Text.translatable(
+                                "death.attack.message_too_long",
+                                *arrayOf<Any>(
+                                    Text.literal(string).formatted(Formatting.YELLOW)
                                 )
-                                val text3 = Text.translatable(
-                                    "death.attack.even_more_magic",
-                                    *arrayOf(entity.displayName)
-                                )
-                                    .styled { style: Style ->
-                                        style.withHoverEvent(
-                                            HoverEvent(
-                                                HoverEvent.Action.SHOW_TEXT,
-                                                text2
-                                            )
+                            )
+                            val text3 = Text.translatable(
+                                "death.attack.even_more_magic",
+                                *arrayOf(entity.displayName)
+                            )
+                                .styled { style: Style ->
+                                    style.withHoverEvent(
+                                        HoverEvent(
+                                            HoverEvent.Action.SHOW_TEXT,
+                                            text2
                                         )
-                                    }
-                                DeathMessageS2CPacket(entity.damageTracker, text3)
-                            }
-                        )
+                                    )
+                                }
+                            DeathMessageS2CPacket(entity.damageTracker, text3)
+                        }
+                    )
                     val abstractTeam = entity.scoreboardTeam
                     if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                        entity.server.playerManager.method_43514(text, false)
+                        entity.server.playerManager.broadcastSystemMessage(text, false)
                     } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
                         entity.server.playerManager.sendSystemMessageToTeam(entity, text)
                     } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
@@ -314,7 +322,7 @@ object DeathSwapMod : ModInitializer {
 
             AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
                 if (DeathSwapStateManager.hasBegun()) {
-                    if (origin.method_44013() == DimensionTypes.THE_END) {
+                    if (origin.dimensionKey == DimensionTypes.THE_END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                             // Teleport player, so they aren't at spawn in the overworld
                             val holder = DeathSwapStateManager.livingPlayers[player.uuid]

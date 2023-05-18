@@ -14,11 +14,11 @@ import net.minecraft.util.Formatting
 import org.jetbrains.annotations.ApiStatus
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlWriter
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.argument.literal
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.execute
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.optional
-import org.quiltmc.qkl.wrapper.minecraft.brigadier.required
+import org.quiltmc.qkl.library.brigadier.argument
+import org.quiltmc.qkl.library.brigadier.argument.literal
+import org.quiltmc.qkl.library.brigadier.execute
+import org.quiltmc.qkl.library.brigadier.optional
+import org.quiltmc.qkl.library.brigadier.required
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.OutputStream

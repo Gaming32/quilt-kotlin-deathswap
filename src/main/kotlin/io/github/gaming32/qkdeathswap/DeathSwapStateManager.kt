@@ -8,17 +8,17 @@ import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.TypeFilter
-import net.minecraft.util.registry.Registry
-import net.minecraft.util.registry.RegistryKey
 import net.minecraft.world.GameMode
 import net.minecraft.world.World
-import org.quiltmc.qkl.wrapper.qsl.networking.allPlayers
+import org.quiltmc.qkl.library.networking.allPlayers
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.PI
@@ -79,9 +79,8 @@ object DeathSwapStateManager {
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
             livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getWorld(RegistryKey.of(Registry.WORLD_KEY, DeathSwapConfig.dimension.value)) ?: server.getWorld(World.OVERWORLD)!!,
-                x,
-                z
+                server.getWorld(RegistryKey.of(RegistryKeys.WORLD, DeathSwapConfig.dimension.value)) ?: server.getWorld(World.OVERWORLD)!!,
+                x, z
             ))
             playerAngle += playerAngleChange
         }

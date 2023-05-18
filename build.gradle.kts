@@ -1,10 +1,10 @@
 plugins {
-    id("org.quiltmc.loom") version "1.0.+"
+    id("org.quiltmc.loom") version "1.1.+"
     kotlin("jvm") version "1.8.21"
     java
 }
 
-version = "1.0.2+1.19"
+version = "1.0.2+1.19.4"
 group = "io.github.gaming32"
 
 repositories {
@@ -27,7 +27,7 @@ dependencies {
     modImplementation(libs.quilt.loader)
 
     modImplementation(libs.quilted.fabric.api)
-    modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:1.0.2+kt.1.8.0+flk.1.9.0")
+    modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.0.2+kt.1.8.20+flk.1.9.3")
 }
 
 tasks.processResources {

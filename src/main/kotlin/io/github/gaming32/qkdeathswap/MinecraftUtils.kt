@@ -15,7 +15,7 @@ fun MinecraftServer.broadcast(message: String) {
 }
 
 fun MinecraftServer.broadcast(message: Text) {
-    playerManager.m_bgctehjy(message, false)
+    playerManager.broadcastSystemMessage(message, false)
 }
 
 val World.spawnLocation: Location
