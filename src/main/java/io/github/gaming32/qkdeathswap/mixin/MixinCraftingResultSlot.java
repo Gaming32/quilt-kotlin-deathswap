@@ -14,14 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(CraftingResultSlot.class)
 public class MixinCraftingResultSlot {
-	@Shadow
-	@Final
-	private PlayerEntity player;
+    @Shadow
+    @Final
+    private PlayerEntity player;
 
-	@Inject(method = "onCrafted(Lnet/minecraft/item/ItemStack;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;onCraft(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/PlayerEntity;I)V"))
-	private void onCrafted(ItemStack stack, CallbackInfo ci) {
-		if (this.player instanceof ServerPlayerEntity serverPlayer) {
-			DeathSwapStateManager.INSTANCE.onCraft(serverPlayer, stack);
-		}
-	}
+    @Inject(method = "onCrafted(Lnet/minecraft/item/ItemStack;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;onCraft(Lnet/minecraft/world/World;Lnet/minecraft/entity/player/PlayerEntity;I)V"))
+    private void onCrafted(ItemStack stack, CallbackInfo ci) {
+        if (this.player instanceof ServerPlayerEntity serverPlayer) {
+            DeathSwapStateManager.INSTANCE.onCraft(serverPlayer, stack);
+        }
+    }
 }

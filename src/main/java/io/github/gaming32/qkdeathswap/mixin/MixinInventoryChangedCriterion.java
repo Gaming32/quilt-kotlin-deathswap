@@ -12,8 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(InventoryChangedCriterion.class)
 public class MixinInventoryChangedCriterion {
-	@Inject(method = "trigger(Lnet/minecraft/server/network/ServerPlayerEntity;Lnet/minecraft/entity/player/PlayerInventory;Lnet/minecraft/item/ItemStack;)V", at = @At("HEAD"))
-	private void onTrigger(ServerPlayerEntity player, PlayerInventory inventory, ItemStack stack, CallbackInfo ci) {
-		DeathSwapStateManager.INSTANCE.onInventoryChanged(player, stack);
-	}
+    @Inject(method = "trigger(Lnet/minecraft/server/network/ServerPlayerEntity;Lnet/minecraft/entity/player/PlayerInventory;Lnet/minecraft/item/ItemStack;)V", at = @At("HEAD"))
+    private void onTrigger(ServerPlayerEntity player, PlayerInventory inventory, ItemStack stack, CallbackInfo ci) {
+        DeathSwapStateManager.INSTANCE.onInventoryChanged(player, stack);
+    }
 }
