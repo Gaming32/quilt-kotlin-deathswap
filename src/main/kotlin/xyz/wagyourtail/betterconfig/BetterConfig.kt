@@ -6,7 +6,6 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import io.github.gaming32.qkdeathswap.consumerApply
 import net.minecraft.command.CommandSource
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
@@ -112,19 +111,19 @@ abstract class BetterConfig<T : BetterConfig<T>>(
 
     fun toText(): Text {
         val text = Text.literal("Config: ")
-        flatItems.toSortedMap().forEach(consumerApply {
+        flatItems.toSortedMap().forEach { (_, value) ->
             text.append("\n").append(value.toText())
-        })
+        }
         return text
     }
 
     open fun copyFrom(other: T) {
-        other.flatItems.forEach(consumerApply {
+        other.flatItems.forEach { (key, value) ->
             val item = flatItems[key] as ConfigItem<Any?, Any?>?
             if (item != null) {
                 item.value = value.value
             }
-        })
+        }
     }
 
     override fun write(writeParent: Boolean) {
