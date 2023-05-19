@@ -6,10 +6,10 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.command.CommandSource
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
+import net.minecraft.ChatFormatting
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.Component
 import org.jetbrains.annotations.ApiStatus
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlWriter
@@ -56,11 +56,11 @@ abstract class BetterConfig<T : BetterConfig<T>>(
         }
     }
 
-    private fun <S> RequiredArgumentBuilder<S, *>.setSuggestor(suggestor: BrigadierSuggestor<CommandSource>) {
+    private fun <S> RequiredArgumentBuilder<S, *>.setSuggestor(suggestor: BrigadierSuggestor<SharedSuggestionProvider>) {
         suggests(suggestor as BrigadierSuggestor<S>)
     }
 
-    fun buildArguments(parent: ArgumentBuilder<ServerCommandSource, *>) {
+    fun buildArguments(parent: ArgumentBuilder<CommandSourceStack, *>) {
         flatItems.forEach { entry ->
             val configItem = entry.value as ConfigItem<Any?, Any?>
             if (configItem.brigadierType != null) {
@@ -78,9 +78,9 @@ abstract class BetterConfig<T : BetterConfig<T>>(
                                     )
                                 )
                                 if (!configItem.brigadierFilter(source, newValue)) {
-                                    source.sendFeedback(
-                                        Text.literal("")
-                                            .append(Text.literal(newValue.toString()).formatted(Formatting.RED))
+                                    source.sendSuccess(
+                                        Component.empty()
+                                            .append(Component.literal(newValue.toString()).withStyle(ChatFormatting.RED))
                                             .append(" is not a valid value for")
                                             .append(configItem.key),
                                         false
@@ -88,16 +88,10 @@ abstract class BetterConfig<T : BetterConfig<T>>(
                                 } else {
                                     configItem.value = newValue
                                     save(configItem)
-                                    source.sendFeedback(
-                                        configItem.toText(),
-                                        false
-                                    )
+                                    source.sendSuccess(configItem.toText(), false)
                                 }
                             } else {
-                                source.sendFeedback(
-                                    configItem.toText(),
-                                    false
-                                )
+                                source.sendSuccess(configItem.toText(), false)
                             }
                         }
                     }
@@ -105,12 +99,12 @@ abstract class BetterConfig<T : BetterConfig<T>>(
             }
         }
         parent.execute {
-            source.sendFeedback(toText(), false)
+            source.sendSuccess(toText(), false)
         }
     }
 
-    fun toText(): Text {
-        val text = Text.literal("Config: ")
+    fun toText(): Component {
+        val text = Component.literal("Config: ")
         flatItems.toSortedMap().forEach { (_, value) ->
             text.append("\n").append(value.toText())
         }
@@ -174,18 +168,18 @@ open class ConfigGroup(
         brigadierType: ArgumentType<U>?,
         comment: String? = null,
         noinline brigadierDeserializer: (U) -> T = { if (it is T) it else if (null is T) it as T else throw IllegalArgumentException("Invalid type") },
-        noinline textValue: (T) -> Text = { Text.literal(it.toString()) as Text },
+        noinline textValue: (T) -> Component = { Component.literal(it.toString()) as Component },
         noinline serializer: (T) -> Any = { it!! },
         noinline deserializer: (Any) -> T = {
-            if (it is T)
+            if (it is T) {
                 it
-            else {
+            } else {
                 parentConfig.LOGGER.warn("Invalid type for arg $name, expected ${T::class.simpleName} got ${it::class.simpleName}")
                 default
             }
         },
-        noinline brigadierFilter: (CommandSource, U) -> Boolean = { _, _ -> true },
-        noinline brigadierSuggestor: BrigadierSuggestor<CommandSource>? = null,
+        noinline brigadierFilter: (SharedSuggestionProvider, U) -> Boolean = { _, _ -> true },
+        noinline brigadierSuggestor: BrigadierSuggestor<SharedSuggestionProvider>? = null,
     ): ConfigItem<T, U> {
         val configItem = ConfigItem(
             name,
@@ -236,8 +230,7 @@ data class ConfigItem<T, U>(
     val name: String,
     val group: ConfigGroup,
     var comment: String?,
-    val textValue: (T) -> Text,
-
+    val textValue: (T) -> Component,
 
     @Suppress("MemberVisibilityCanBePrivate")
     val default: T,
@@ -247,8 +240,8 @@ data class ConfigItem<T, U>(
 
     val brigadierType: ArgumentType<U>?,
     val brigadierDesierializer: (U) -> T,
-    val brigadierFilter: (CommandSource, U) -> Boolean,
-    val suggestor: BrigadierSuggestor<CommandSource>?
+    val brigadierFilter: (SharedSuggestionProvider, U) -> Boolean,
+    val suggestor: BrigadierSuggestor<SharedSuggestionProvider>?
 ) {
 
     private fun loadValue(): T {
@@ -281,10 +274,6 @@ data class ConfigItem<T, U>(
     val key: String
         get() = (group.key + name).joinToString(".")
 
-    fun toText(): Text {
-        return Text.literal(key).append(" -> ").append(textValue(value))
-    }
+    fun toText(): Component = Component.literal(key).append(" -> ").append(textValue(value))
 
 }
-
-

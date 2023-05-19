@@ -4,17 +4,17 @@ import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
-import net.minecraft.command.CommandSource
-import net.minecraft.command.argument.DimensionArgumentType
-import net.minecraft.command.argument.TimeArgumentType
-import net.minecraft.entity.player.PlayerInventory
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.nbt.NbtElement
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.DimensionArgument
+import net.minecraft.commands.arguments.TimeArgument
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.NbtList
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
-import net.minecraft.world.World
+import net.minecraft.nbt.Tag
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.level.Level
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlParser
@@ -27,7 +27,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
-private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Text.translatable("argument.enum.invalid", it) }
+private val INVALID_ENUM_EXCEPTION = DynamicCommandExceptionType { Component.translatable("argument.enum.invalid", it) }
 
 open class DeathSwapConfig(
     configToml: CommentedConfig,
@@ -49,12 +49,10 @@ open class DeathSwapConfig(
         }
     )
 
-    private fun formatTime(value: Int): Text {
-        return if (value % 20 == 0) {
-            Text.literal("${value}t (${value / 20}s)")
-        } else {
-            Text.literal("${value}t (${value / 20.0}s)")
-        }
+    private fun formatTime(value: Int) = if (value % 20 == 0) {
+        Component.literal("${value}t (${value / 20}s)")
+    } else {
+        Component.literal("${value}t (${value / 20.0}s)")
     }
 
     constructor(input: InputStream, output: () -> OutputStream? = { null }) : this(TomlParser().parse(input), output)
@@ -68,7 +66,7 @@ open class DeathSwapConfig(
     val minSwapTime = swapTimeGroup.setting(
         "min",
         20 * 60,
-        TimeArgumentType.of(),
+        TimeArgument.time(),
         "The minimum time between swaps",
         textValue = ::formatTime
     )
@@ -76,7 +74,7 @@ open class DeathSwapConfig(
     val maxSwapTime = swapTimeGroup.setting(
         "max",
         20 * 180,
-        TimeArgumentType.of(),
+        TimeArgument.time(),
         "The maximum time between swaps",
         textValue = ::formatTime
     )
@@ -84,7 +82,7 @@ open class DeathSwapConfig(
     val warnTime = swapTimeGroup.setting(
         "warn",
         0,
-        TimeArgumentType.of(),
+        TimeArgument.time(),
         "The time before a swap that a warning will be sent to the player",
         textValue = ::formatTime
     )
@@ -123,22 +121,20 @@ open class DeathSwapConfig(
         }
 
     val dimension = setting("dimension",
-        World.OVERWORLD.value,
-        DimensionArgumentType.dimension(),
+        Level.OVERWORLD.location(),
+        DimensionArgument.dimension(),
         "The dimension players are teleported to",
         serializer = { it.toString() },
-        deserializer = { (it as? String)?.let(::Identifier) },
+        deserializer = { (it as? String)?.let(::ResourceLocation) },
         brigadierFilter = { source, value ->
-            source.worldKeys.any {
-                it.value == value
-            }
+            source.levels().any { it.location() == value }
         }
     )
 
     val resistanceTime = setting(
         "resistance_time",
         20 * 15,
-        TimeArgumentType.of(),
+        TimeArgument.time(),
         "The number of ticks of resistance players will get at the beginning of the deathswap\n" +
                 "Default 15 seconds",
         textValue = ::formatTime
@@ -207,7 +203,7 @@ open class DeathSwapConfig(
     val teleportLoadTime = setting(
         "teleport_load_time",
         20 * 5,
-        TimeArgumentType.of(),
+        TimeArgument.time(),
         "The number of ticks it takes for the player to load after teleporting\n" +
                 "Default 5 seconds",
         textValue = ::formatTime
@@ -224,14 +220,14 @@ open class DeathSwapConfig(
         DeathSwapGameMode.NORMAL,
         StringArgumentType.word(),
         brigadierDeserializer = { input ->
-            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: throw INVALID_ENUM_EXCEPTION.create(input)
+            DeathSwapGameMode.values().firstOrNull { it.serializedName == input } ?: throw INVALID_ENUM_EXCEPTION.create(input)
         },
         brigadierSuggestor = { _, builder ->
-            CommandSource.suggestMatching(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::asString), builder)
+            SharedSuggestionProvider.suggest(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::getSerializedName), builder)
         },
-        serializer = { it.asString() },
+        serializer = { it.serializedName },
         deserializer = { input ->
-            DeathSwapGameMode.values().firstOrNull { it.asString() == input } ?: DeathSwapGameMode.NORMAL
+            DeathSwapGameMode.values().firstOrNull { it.serializedName == input } ?: DeathSwapGameMode.NORMAL
         }
     )
 
@@ -253,24 +249,20 @@ open class DeathSwapConfig(
         IntegerArgumentType.integer(1)
     )
 
-    var defaultKit: PlayerInventory = loadKit()
+    var defaultKit: Inventory = loadKit()
 
-    private fun loadKit(): PlayerInventory {
-        return PlayerInventory(null).apply {
-            if (DeathSwapMod.defaultKitStoreLocation.exists()) {
-                readNbt(
-                    NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
-                        .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
-                )
-            }
+    private fun loadKit() = Inventory(null).apply {
+        if (DeathSwapMod.defaultKitStoreLocation.exists()) {
+            load(
+                NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
+                    .getList("Inventory", Tag.TAG_COMPOUND.toInt())
+            )
         }
     }
 
     fun writeDefaultKit() {
-        NbtIo.writeCompressed(NbtCompound().apply {
-            put("Inventory", NbtList().apply {
-                DeathSwapConfig.defaultKit.writeNbt(this)
-            })
+        NbtIo.writeCompressed(CompoundTag().apply {
+            put("Inventory", ListTag().apply(defaultKit::save))
         }, DeathSwapMod.defaultKitStoreLocation)
     }
 

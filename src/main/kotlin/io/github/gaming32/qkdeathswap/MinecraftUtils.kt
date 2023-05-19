@@ -1,55 +1,49 @@
 package io.github.gaming32.qkdeathswap
 
-import net.minecraft.entity.Entity
-import net.minecraft.inventory.Inventory
+import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.server.world.ServerWorld
-import net.minecraft.text.Text
-import net.minecraft.world.Heightmap
-import net.minecraft.world.World
-import net.minecraft.world.chunk.WorldChunk
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.Container
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.chunk.LevelChunk
+import net.minecraft.world.level.levelgen.Heightmap
 
-fun MinecraftServer.broadcast(message: String) {
-    broadcast(Text.literal(message))
-}
+fun MinecraftServer.broadcast(message: String) = broadcast(Component.literal(message))
 
-fun MinecraftServer.broadcast(message: Text) {
-    playerManager.broadcastSystemMessage(message, false)
-}
+fun MinecraftServer.broadcast(message: Component) = playerList.broadcastSystemMessage(message, false)
 
-val World.spawnLocation: Location
-    get() = Location(this, spawnPos, yaw = spawnAngle)
+val Level.spawnLocation get() = Location(this, sharedSpawnPos, yaw = sharedSpawnAngle)
 
-fun ServerPlayerEntity.teleport(location: Location) {
-    val world = (location.getWorld(server) ?: world) as ServerWorld
+fun ServerPlayer.teleport(location: Location) {
+    val world = (location.getWorld(server) ?: level) as ServerLevel
 
     if (isSleeping) {
-        wakeUp(true, true)
+        stopSleepInBed(true, true)
     }
     stopRiding()
-    teleport(
+    teleportTo(
         world,
         location.x,
         location.y,
         location.z,
-        location.yaw ?: yaw,
-        location.pitch ?: pitch
+        location.yaw ?: yRot,
+        location.pitch ?: xRot
     )
 }
 
-val Entity.location: Location
-    get() = Location(world, x, y, z, yaw, pitch, pose)
+val Entity.location get() = Location(level, x, y, z, yRot, xRot, pose)
 
-var ServerPlayerEntity.spawnLocation: Location?
-    get() = spawnPointPosition?.let { spawnPos ->
-        Location(server.getWorld(spawnPointDimension), spawnPos, yaw = spawnAngle)
+var ServerPlayer.spawnLocation: Location?
+    get() = respawnPosition?.let { spawnPos ->
+        Location(server.getLevel(respawnDimension), spawnPos, yaw = respawnAngle)
     }
     set(location) {
         if (location == null) {
-            setSpawnPoint(World.OVERWORLD, null, 0.0f, false, false)
+            setRespawnPosition(Level.OVERWORLD, null, 0.0f, false, false)
         } else {
-            setSpawnPoint(location.world ?: World.OVERWORLD, location.blockPos, location.yaw ?: 0.0f, true, false)
+            setRespawnPosition(location.world ?: Level.OVERWORLD, location.blockPos, location.yaw ?: 0.0f, true, false)
         }
     }
 
@@ -59,12 +53,12 @@ fun ticksToMinutesSeconds(ticks: Int): String {
     return "${minutes}:${seconds.toString().padStart(2, '0')}"
 }
 
-fun WorldChunk.getTopBlock(x: Int, z: Int): Int {
-    return getHeightmap(Heightmap.Type.WORLD_SURFACE).get(x, z)
+fun LevelChunk.getTopBlock(x: Int, z: Int): Int {
+    return getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE).getFirstAvailable(x, z)
 }
 
-fun Inventory.copyFrom(other: Inventory) {
-    for (i in 0 until size()) {
-        setStack(i, other.getStack(i).copy())
+fun Container.copyFrom(other: Container) {
+    for (i in 0 until containerSize) {
+        setItem(i, other.getItem(i).copy())
     }
 }

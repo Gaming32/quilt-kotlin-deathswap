@@ -18,12 +18,11 @@ repositories {
 
 dependencies {
     minecraft(libs.minecraft)
-    mappings(variantOf(libs.quilt.mappings) { classifier("intermediary-v2") })
-//    @Suppress("UnstableApiUsage")
-//    mappings(loom.layered {
-//        officialMojangMappings()
-//        parchment("org.parchmentmc.data:parchment-1.19.3:2023.03.12@zip")
-//    })
+    @Suppress("UnstableApiUsage")
+    mappings(loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-1.19.3:2023.03.12@zip")
+    })
     modImplementation(libs.quilt.loader)
 
     modImplementation(libs.quilted.fabric.api)

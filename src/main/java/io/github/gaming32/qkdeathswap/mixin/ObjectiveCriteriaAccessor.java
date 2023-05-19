@@ -1,13 +1,13 @@
 package io.github.gaming32.qkdeathswap.mixin;
 
-import net.minecraft.scoreboard.ScoreboardCriterion;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-@Mixin(ScoreboardCriterion.class)
-public interface ScoreboardCriterionAccessor {
+@Mixin(ObjectiveCriteria.class)
+public interface ObjectiveCriteriaAccessor {
     @Invoker
-    static ScoreboardCriterion callCreate(String name) {
+    static ObjectiveCriteria callRegisterCustom(String name) {
         throw new UnsupportedOperationException();
     }
 }

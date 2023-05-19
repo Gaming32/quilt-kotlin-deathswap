@@ -1,9 +1,9 @@
 package io.github.gaming32.qkdeathswap
 
-import net.minecraft.entity.player.PlayerInventory
-import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtIo
-import net.minecraft.text.Text
+import net.minecraft.nbt.Tag
+import net.minecraft.network.chat.Component
+import net.minecraft.world.entity.player.Inventory
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -76,7 +76,7 @@ object Presets {
         }
     }
 
-    fun preview(preset: String): Text? {
+    fun preview(preset: String): Component? {
         findPresetConfig(preset).use { stream ->
             return if (stream != null) {
                 DeathSwapConfig(stream).toText()
@@ -86,13 +86,13 @@ object Presets {
         }
     }
 
-    fun previewKit(preset: String): PlayerInventory? {
+    fun previewKit(preset: String): Inventory? {
         findPresetKit(preset).use { stream ->
             return if (stream != null) {
-                return PlayerInventory(null).apply {
-                    readNbt(
+                return Inventory(null).apply {
+                    load(
                         NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
-                            .getList("Inventory", NbtElement.COMPOUND_TYPE.toInt())
+                            .getList("Inventory", Tag.TAG_COMPOUND.toInt())
                     )
                 }
             } else {

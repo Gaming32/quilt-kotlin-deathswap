@@ -1,35 +1,39 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.mixin.EntityAccessor
-import net.minecraft.entity.Entity
-import net.minecraft.entity.decoration.ArmorStandEntity
-import net.minecraft.entity.mob.Angerable
-import net.minecraft.item.ItemStack
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
-import net.minecraft.util.math.Vec3d
+import net.minecraft.ChatFormatting
+import net.minecraft.network.chat.Component
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.NeutralMob
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.phys.Vec3
 
-class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPlayer: ServerPlayerEntity) {
+class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: ServerPlayer) {
     private val pos = nextPlayer.location
 
     private val vehicle = nextPlayer.vehicle
 
     private val health = nextPlayer.health
 
-    private val food = nextPlayer.hungerManager.foodLevel
-    private val saturation = nextPlayer.hungerManager.saturationLevel
+    private val food = nextPlayer.foodData.foodLevel
+    private val saturation = nextPlayer.foodData.saturationLevel
 
-    private val fireTicks = nextPlayer.fireTicks
-    private val frozenTicks = nextPlayer.frozenTicks
+    private val fireTicks = nextPlayer.remainingFireTicks
+    private val frozenTicks = nextPlayer.ticksFrozen
 
     private val spawnPoint = nextPlayer.spawnLocation
 
-    private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value) nextPlayer.activeStatusEffects else null
+    private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value) nextPlayer.activeEffectsMap else null
 
-    private val angryMobs = if (DeathSwapConfig.swapMobAggression.value) nextPlayer.getWorld().iterateEntities().filter { it is Angerable && it.angryAt == nextPlayer.uuid } else null
+    private val angryMobs = if (DeathSwapConfig.swapMobAggression.value) {
+        nextPlayer.getLevel().allEntities.filter { it is NeutralMob && it.persistentAngerTarget == nextPlayer.uuid }
+    } else {
+        null
+    }
 
-    private val air = nextPlayer.air
+    private val air = nextPlayer.airSupply
 
     private val inventory: List<ItemStack>?
 
@@ -38,10 +42,10 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
 
     init {
         if (DeathSwapConfig.swapInventory.value) {
-            val size = nextPlayer.inventory.size()
+            val size = nextPlayer.inventory.containerSize
             inventory = mutableListOf()
             for (i in 0 until size) {
-                inventory.add(nextPlayer.inventory.getStack(i))
+                inventory.add(nextPlayer.inventory.getItem(i))
             }
         } else {
             inventory = null
@@ -60,14 +64,14 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
         )
         val world = pos.getWorld(this.thisPlayer.server)
         if (world != null) {
-            tempEntity = ArmorStandEntity(world, pos.x, this.pos.y, pos.z).apply {
+            tempEntity = ArmorStand(world, pos.x, this.pos.y, pos.z).apply {
                 isInvulnerable = true
                 isInvisible = true
-                setNoGravity(true)
+                isNoGravity = true
                 @Suppress("KotlinConstantConditions")
                 (this as EntityAccessor).setDimensions(nextPlayer.getDimensions(pos.pose))
             }
-            world.spawnEntity(tempEntity)
+            world.addFreshEntity(tempEntity)
         }
         thisPlayer.teleport(pos)
         thisPlayer.spawnLocation = pos
@@ -75,10 +79,10 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
 
     fun swap(moreThanTwoPlayers: Boolean) {
         DeathSwapStateManager.livingPlayers[thisPlayer.uuid]?.startLocation = nextStartLocation
-        thisPlayer.velocity = Vec3d.ZERO
+        thisPlayer.deltaMovement = Vec3.ZERO
         thisPlayer.fallDistance = 0f
 
-        val targetPos = if (nextPlayer.isDead && spawnPoint != null) spawnPoint else pos
+        val targetPos = if (nextPlayer.isDeadOrDying && spawnPoint != null) spawnPoint else pos
 
         thisPlayer.teleport(targetPos)
         thisPlayer.spawnLocation = spawnPoint
@@ -88,8 +92,8 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
             thisPlayer.health = health
         }
         if (DeathSwapConfig.swapHunger.value) {
-            thisPlayer.hungerManager.foodLevel = food
-            thisPlayer.hungerManager.saturationLevel = saturation
+            thisPlayer.foodData.foodLevel = food
+            thisPlayer.foodData.setSaturation(saturation)
         }
         nextPlayer.stopRiding()
         if (DeathSwapConfig.swapMount.value && vehicle != null) {
@@ -100,36 +104,36 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
             swapMobAggression()
         }
         if (DeathSwapConfig.swapFire.value) {
-            thisPlayer.fireTicks = fireTicks
+            thisPlayer.remainingFireTicks = fireTicks
         }
         if (DeathSwapConfig.swapAir.value) {
-            thisPlayer.air = air
+            thisPlayer.airSupply = air
         }
         if (DeathSwapConfig.swapFrozen.value) {
-            thisPlayer.frozenTicks = frozenTicks
+            thisPlayer.ticksFrozen = frozenTicks
         }
         if (DeathSwapConfig.swapPotionEffects.value) {
-            thisPlayer.clearStatusEffects()
+            thisPlayer.removeAllEffects()
             statusEffects?.forEach {
-                thisPlayer.addStatusEffect(it.value)
+                thisPlayer.addEffect(it.value)
             }
         }
         if (DeathSwapConfig.swapInventory.value) {
-            thisPlayer.inventory.clear()
+            thisPlayer.inventory.clearContent()
             for (i in 0 until (inventory?.size ?: 0)) {
-                thisPlayer.inventory.setStack(i, inventory?.get(i) ?: ItemStack.EMPTY)
+                thisPlayer.inventory.setItem(i, inventory?.get(i) ?: ItemStack.EMPTY)
             }
         }
 
-        thisPlayer.sendMessage(
-            Text.literal("You were teleported to ").formatted(Formatting.GRAY)
-                .append(nextPlayer.displayName.copy().formatted(Formatting.GREEN)),
+        thisPlayer.displayClientMessage(
+            Component.literal("You were teleported to ").withStyle(ChatFormatting.GRAY)
+                .append(nextPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)),
             false
         )
         if (moreThanTwoPlayers) {
-            nextPlayer.sendMessage(
-                thisPlayer.displayName.copy().formatted(Formatting.GREEN)
-                    .append(Text.literal(" teleported to you").formatted(Formatting.GRAY)),
+            nextPlayer.displayClientMessage(
+                thisPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)
+                    .append(Component.literal(" teleported to you").withStyle(ChatFormatting.GRAY)),
                 false
             )
         }
@@ -140,7 +144,7 @@ class SwapForward(private val thisPlayer: ServerPlayerEntity, private val nextPl
             if (DeathSwapMod.LOGGER.isDebugEnabled) {
                 DeathSwapMod.LOGGER.debug("Making ${it.displayName.string} angry at ${thisPlayer.displayName.string}")
             }
-            (it as Angerable).angryAt = thisPlayer.uuid
+            (it as NeutralMob).persistentAngerTarget = thisPlayer.uuid
             it.target = thisPlayer
         }
     }

@@ -1,34 +1,33 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.DeathSwapConfig.DeathSwapConfigStatic.writeDefaultKit
-import io.github.gaming32.qkdeathswap.mixin.ScoreboardCriterionAccessor
-import net.minecraft.command.CommandException
-import net.minecraft.command.CommandSource
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.entity.player.PlayerInventory
-import net.minecraft.inventory.SimpleInventory
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.nbt.NbtCompound
+import io.github.gaming32.qkdeathswap.mixin.ObjectiveCriteriaAccessor
+import net.minecraft.ChatFormatting
+import net.minecraft.commands.CommandRuntimeException
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.NbtList
 import net.minecraft.network.PacketSendListener
-import net.minecraft.network.packet.s2c.play.DeathMessageS2CPacket
-import net.minecraft.scoreboard.AbstractTeam.VisibilityRule
-import net.minecraft.screen.GenericContainerScreenHandler
-import net.minecraft.screen.NamedScreenHandlerFactory
-import net.minecraft.screen.ScreenHandler
-import net.minecraft.screen.ScreenHandlerType
-import net.minecraft.screen.slot.SlotActionType
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.text.HoverEvent
-import net.minecraft.text.ScreenTexts
-import net.minecraft.text.Style
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
-import net.minecraft.world.GameMode
-import net.minecraft.world.GameRules
-import net.minecraft.world.dimension.DimensionTypes
+import net.minecraft.network.chat.CommonComponents
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.protocol.game.ClientboundPlayerCombatKillPacket
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.MenuProvider
+import net.minecraft.world.SimpleContainer
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.inventory.AbstractContainerMenu
+import net.minecraft.world.inventory.ChestMenu
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.MenuType
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.world.level.GameRules
+import net.minecraft.world.level.GameType
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes
+import net.minecraft.world.scores.Team.Visibility
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.library.brigadier.argument.literal
@@ -67,7 +66,7 @@ object DeathSwapMod : ModInitializer {
 
     val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
 
-    val itemCountCriterion = ScoreboardCriterionAccessor.callCreate("$MOD_ID:item_count")!!
+    val itemCountCriterion = ObjectiveCriteriaAccessor.callRegisterCustom("$MOD_ID:item_count")!!
 
     override fun onInitialize(mod: ModContainer) {
         if (!configDir.exists()) {
@@ -81,12 +80,12 @@ object DeathSwapMod : ModInitializer {
         registerEvents {
             onCommandRegistration { _, _ ->
                 register("deathswap") {
-                    requires { it.hasPermissionLevel(1) }
+                    requires { it.hasPermission(1) }
                     required(literal("start")) {
                         execute {
                             try {
                                 if (!QuiltLoader.isDevelopmentEnvironment() && source.server.allPlayers.size < 2) {
-                                    throw CommandException(Text.literal("Cannot start a DeathSwap with less than 2 players."))
+                                    throw CommandRuntimeException(Component.literal("Cannot start a DeathSwap with less than 2 players."))
                                 }
                                 DeathSwapStateManager.begin(source.server)
                                 source.server.broadcast("Deathswap started!")
@@ -109,7 +108,7 @@ object DeathSwapMod : ModInitializer {
                         required(literal("load")) {
                             required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
-                                    CommandSource.suggestMatching(
+                                    SharedSuggestionProvider.suggest(
                                         Presets.list(),
                                         builder
                                     )
@@ -117,9 +116,9 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val preset = getPreset().value()
                                     if (Presets.load(preset)) {
-                                        source.sendFeedback(Text.literal("Successfully loaded preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
+                                        source.sendSuccess(Component.literal("Successfully loaded preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true)
                                     } else {
-                                        source.sendFeedback(Text.literal("Failed to load preset ").append(Text.literal(preset).formatted(Formatting.RED)), false)
+                                        source.sendSuccess(Component.literal("Failed to load preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), false)
                                     }
                                 }
                             }
@@ -127,7 +126,7 @@ object DeathSwapMod : ModInitializer {
                         required(literal("delete")) {
                             required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
-                                    CommandSource.suggestMatching(
+                                    SharedSuggestionProvider.suggest(
                                         Presets.list(),
                                         builder
                                     )
@@ -135,12 +134,12 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val preset = getPreset().value()
                                     if (Presets.delete(preset)) {
-                                        source.sendFeedback(Text.literal("Successfully deleted preset ").append(Text.literal(preset).formatted(Formatting.GREEN)), true)
+                                        source.sendSuccess(Component.literal("Successfully deleted preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true)
                                     } else {
                                         if (preset in Presets.builtin) {
-                                            source.sendFeedback(Text.literal("Cannot delete builtin preset ").append(Text.literal(preset).formatted(Formatting.RED)), true)
+                                            source.sendSuccess(Component.literal("Cannot delete builtin preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), true)
                                         } else {
-                                            source.sendFeedback(Text.literal("Failed to delete preset ").append(Text.literal(preset).formatted(Formatting.RED)).append(Text.literal(". does it exist?")), false)
+                                            source.sendSuccess(Component.literal("Failed to delete preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(". does it exist?")), false)
                                         }
                                     }
                                 }
@@ -152,15 +151,15 @@ object DeathSwapMod : ModInitializer {
                                     val preset = getPreset().value()
                                     try {
                                         Presets.save(preset)
-                                        source.sendFeedback(
-                                            Text.literal("Successfully saved preset ")
-                                                .append(Text.literal(preset).formatted(Formatting.GREEN)), true
+                                        source.sendSuccess(
+                                            Component.literal("Successfully saved preset ")
+                                                .append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true
                                         )
                                     } catch (e: IOException) {
-                                        source.sendFeedback(
-                                            Text.literal("Failed to save preset ")
-                                                .append(Text.literal(preset).formatted(Formatting.RED))
-                                                .append(Text.literal(". ").append(Text.literal(e.message).formatted(Formatting.RED))), false
+                                        source.sendSuccess(
+                                            Component.literal("Failed to save preset ")
+                                                .append(Component.literal(preset).withStyle(ChatFormatting.RED))
+                                                .append(Component.literal(". ").append(Component.literal(e.message).withStyle(ChatFormatting.RED))), false
                                         )
                                     }
                                 }
@@ -169,7 +168,7 @@ object DeathSwapMod : ModInitializer {
                         required(literal("preview")) {
                             required(string("preset")) { getPreset ->
                                 suggests { _, builder ->
-                                    CommandSource.suggestMatching(
+                                    SharedSuggestionProvider.suggest(
                                         Presets.list(),
                                         builder
                                     )
@@ -180,21 +179,21 @@ object DeathSwapMod : ModInitializer {
                                         if (getKit != null) {
                                             val kit = Presets.previewKit(preset)
                                             if (kit != null) {
-                                                viewKit(source.playerOrThrow, kit)
+                                                viewKit(source.playerOrException, kit)
                                             } else {
-                                                source.sendFeedback(Text.literal("No kit found for preset ").append(Text.literal(preset).formatted(Formatting.RED)).append(Text.literal(", or preset doesn't exist.")), false)
+                                                source.sendSuccess(Component.literal("No kit found for preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(", or preset doesn't exist.")), false)
                                             }
                                         } else {
                                             val values = Presets.preview(preset)
                                             if (values != null) {
-                                                source.sendFeedback(
-                                                    Text.literal("Previewing preset ")
-                                                        .append(Text.literal(preset).formatted(Formatting.GREEN))
-                                                        .append(Text.literal(":")), true
+                                                source.sendSuccess(
+                                                    Component.literal("Previewing preset ")
+                                                        .append(Component.literal(preset).withStyle(ChatFormatting.GREEN))
+                                                        .append(Component.literal(":")), true
                                                 )
-                                                source.sendFeedback(values, false)
+                                                source.sendSuccess(values, false)
                                             } else {
-                                                source.sendFeedback(Text.literal("No preset found for ").append(Text.literal(preset).formatted(Formatting.RED)), false)
+                                                source.sendSuccess(Component.literal("No preset found for ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), false)
                                             }
                                         }
                                     }
@@ -205,24 +204,24 @@ object DeathSwapMod : ModInitializer {
                     required(literal("default_kit")) {
                         required(literal("clear")) {
                             execute {
-                                DeathSwapConfig.defaultKit.clear()
-                                NbtIo.writeCompressed(NbtCompound().apply {
-                                    put("Inventory", NbtList())
+                                DeathSwapConfig.defaultKit.clearContent()
+                                NbtIo.writeCompressed(CompoundTag().apply {
+                                    put("Inventory", ListTag())
                                 }, defaultKitStoreLocation)
-                                source.sendFeedback(Text.literal("Cleared the default kit"), true)
+                                source.sendSuccess(Component.literal("Cleared the default kit"), true)
                             }
                         }
                         required(literal("set_from_player")) {
                             optional(player("player")) { getPlayer ->
                                 execute {
-                                    val actualPlayer = getPlayer?.invoke(this)?.value() ?: source.playerOrThrow
+                                    val actualPlayer = getPlayer?.invoke(this)?.value() ?: source.playerOrException
                                     DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
                                     DeathSwapConfig.writeDefaultKit()
-                                    source.sendFeedback(
+                                    source.sendSuccess(
                                         if (actualPlayer === source) {
-                                            Text.literal("Set the default kit to your current inventory")
+                                            Component.literal("Set the default kit to your current inventory")
                                         } else {
-                                            Text.literal("Set the default kit to ")
+                                            Component.literal("Set the default kit to ")
                                                 .append(actualPlayer.displayName)
                                                 .append("'s current inventory")
                                         }, true
@@ -232,12 +231,12 @@ object DeathSwapMod : ModInitializer {
                         }
                         required(literal("load")) {
                             execute {
-                                source.playerOrThrow.inventory.copyFrom(DeathSwapConfig.defaultKit)
+                                source.playerOrException.inventory.copyFrom(DeathSwapConfig.defaultKit)
                             }
                         }
                         required(literal("view")) {
                             execute {
-                                viewKit(source.playerOrThrow, DeathSwapConfig.defaultKit)
+                                viewKit(source.playerOrException, DeathSwapConfig.defaultKit)
                             }
                         }
                     }
@@ -250,7 +249,7 @@ object DeathSwapMod : ModInitializer {
                             }
                             required(literal("swap_at")) {
                                 execute {
-                                    source.sendFeedback(Text.literal(
+                                    source.sendSuccess(Component.literal(
                                         "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
                                     ), false)
                                 }
@@ -261,48 +260,46 @@ object DeathSwapMod : ModInitializer {
             }
 
             BEFORE_TOTEM.register { entity, _ ->
-                if (entity !is ServerPlayerEntity) return@register false
+                if (entity !is ServerPlayer) return@register false
                 if (!DeathSwapStateManager.hasBegun()) {
                     return@register true
                 }
-                val showDeathMessages = entity.world.gameRules.getBoolean(GameRules.SHOW_DEATH_MESSAGES)
+                val showDeathMessages = entity.level.gameRules.getBoolean(GameRules.RULE_SHOWDEATHMESSAGES)
                 if (showDeathMessages) {
-                    val text = entity.damageTracker.deathMessage
-                    entity.networkHandler.sendPacket(
-                        DeathMessageS2CPacket(entity.damageTracker, text),
-                        PacketSendListener.toSendIfFailed {
-                            val string = text.asTruncatedString(256)
-                            val text2 = Text.translatable(
+                    val text = entity.combatTracker.deathMessage
+                    entity.connection.send(
+                        ClientboundPlayerCombatKillPacket(entity.combatTracker, text),
+                        PacketSendListener.exceptionallySend {
+                            val string = text.getString(256)
+                            val text2 = Component.translatable(
                                 "death.attack.message_too_long",
                                 *arrayOf<Any>(
-                                    Text.literal(string).formatted(Formatting.YELLOW)
+                                    Component.literal(string).withStyle(ChatFormatting.YELLOW)
                                 )
                             )
-                            val text3 = Text.translatable(
+                            val text3 = Component.translatable(
                                 "death.attack.even_more_magic",
                                 *arrayOf(entity.displayName)
                             )
-                                .styled { style: Style ->
-                                    style.withHoverEvent(
-                                        HoverEvent(
-                                            HoverEvent.Action.SHOW_TEXT,
-                                            text2
-                                        )
-                                    )
+                                .withStyle {
+                                    it.withHoverEvent(HoverEvent(
+                                        HoverEvent.Action.SHOW_TEXT,
+                                        text2
+                                    ))
                                 }
-                            DeathMessageS2CPacket(entity.damageTracker, text3)
+                            ClientboundPlayerCombatKillPacket(entity.combatTracker, text3)
                         }
                     )
-                    val abstractTeam = entity.scoreboardTeam
-                    if (abstractTeam == null || abstractTeam.deathMessageVisibilityRule == VisibilityRule.ALWAYS) {
-                        entity.server.playerManager.broadcastSystemMessage(text, false)
-                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OTHER_TEAMS) {
-                        entity.server.playerManager.sendSystemMessageToTeam(entity, text)
-                    } else if (abstractTeam.deathMessageVisibilityRule == VisibilityRule.HIDE_FOR_OWN_TEAM) {
-                        entity.server.playerManager.sendSystemMessageToOtherTeams(entity, text)
+                    val abstractTeam = entity.team
+                    if (abstractTeam == null || abstractTeam.deathMessageVisibility == Visibility.ALWAYS) {
+                        entity.server.playerList.broadcastSystemMessage(text, false)
+                    } else if (abstractTeam.deathMessageVisibility == Visibility.HIDE_FOR_OTHER_TEAMS) {
+                        entity.server.playerList.broadcastSystemToTeam(entity, text)
+                    } else if (abstractTeam.deathMessageVisibility == Visibility.HIDE_FOR_OWN_TEAM) {
+                        entity.server.playerList.broadcastSystemToAllExceptTeam(entity, text)
                     }
                 } else {
-                    entity.networkHandler.sendPacket(DeathMessageS2CPacket(entity.damageTracker, ScreenTexts.EMPTY))
+                    entity.connection.send(ClientboundPlayerCombatKillPacket(entity.combatTracker, CommonComponents.EMPTY))
                 }
                 DeathSwapStateManager.removePlayer(entity)
                 !showDeathMessages
@@ -316,13 +313,13 @@ object DeathSwapMod : ModInitializer {
 
             onPlayReady { _, _ ->
                 if (DeathSwapStateManager.hasBegun() && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
-                    DeathSwapStateManager.resetPlayer(player, gamemode = GameMode.SPECTATOR)
+                    DeathSwapStateManager.resetPlayer(player, gamemode = GameType.SPECTATOR)
                 }
             }
 
             AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
                 if (DeathSwapStateManager.hasBegun()) {
-                    if (origin.dimensionKey == DimensionTypes.THE_END) {
+                    if (origin.dimensionTypeId() == BuiltinDimensionTypes.END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                             // Teleport player, so they aren't at spawn in the overworld
                             val holder = DeathSwapStateManager.livingPlayers[player.uuid]
@@ -331,7 +328,7 @@ object DeathSwapMod : ModInitializer {
                                 if (holder.startLocation.world != destination) {
                                     val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
                                     while (!loc.tick()) {}
-                                    player.teleport(
+                                    player.teleportTo(
                                         newLoc.world,
                                         newLoc.x.toDouble(),
                                         newLoc.y.toDouble(),
@@ -351,45 +348,40 @@ object DeathSwapMod : ModInitializer {
         LOGGER.info("$MOD_ID initialized!")
     }
 
-    fun viewKit(player: ServerPlayerEntity, kit: PlayerInventory) {
-        player.openHandledScreen(object : NamedScreenHandlerFactory {
+    fun viewKit(player: ServerPlayer, kit: Inventory) {
+        player.openMenu(object : MenuProvider {
             override fun createMenu(
                 syncId: Int,
-                playerInventory: PlayerInventory,
-                playerEntity: PlayerEntity
-            ): ScreenHandler {
-                val screenHandler = object : GenericContainerScreenHandler(
-                    ScreenHandlerType.GENERIC_9X5,
+                playerInventory: Inventory,
+                playerEntity: Player
+            ): AbstractContainerMenu {
+                val screenHandler = object : ChestMenu(
+                    MenuType.GENERIC_9x5,
                     syncId,
                     playerInventory,
-                    SimpleInventory(9 * 5),
+                    SimpleContainer(9 * 5),
                     5
                 ) {
-                    override fun onSlotClick(
-                        slotIndex: Int,
-                        button: Int,
-                        actionType: SlotActionType?,
-                        player: PlayerEntity?
-                    ) {
+                    override fun clicked(slotIndex: Int, button: Int, actionType: ClickType, player: Player) {
                         if (slotIndex in 5 until 9) {
-                            cursorStack = ItemStack.EMPTY
-                            updateToClient()
+                            carried = ItemStack.EMPTY
+                            broadcastFullState()
                             return
                         }
-                        super.onSlotClick(slotIndex, button, actionType, player)
+                        super.clicked(slotIndex, button, actionType, player)
                     }
 
-                    override fun close(player: PlayerEntity) {
+                    override fun removed(player: Player) {
                         for (i in 0 until 4) {
                             for (j in 0 until 9) {
-                                kit.setStack(
+                                kit.setItem(
                                     i * 9 + j,
-                                    getSlot((4 - i) * 9 + j).stack.copy()
+                                    getSlot((4 - i) * 9 + j).item.copy()
                                 )
                             }
                         }
                         for (i in 0 until 5) {
-                            kit.setStack(36 + i, getSlot(i).stack.copy())
+                            kit.setItem(36 + i, getSlot(i).item.copy())
                         }
                         if (kit == DeathSwapConfig.defaultKit) {
                             writeDefaultKit()
@@ -398,22 +390,22 @@ object DeathSwapMod : ModInitializer {
                 }
                 for (i in 0 until 4) {
                     for (j in 0 until 9) {
-                        screenHandler.inventory.setStack(
+                        screenHandler.container.setItem(
                             (4 - i) * 9 + j,
-                            kit.getStack(i * 9 + j).copy()
+                            kit.getItem(i * 9 + j).copy()
                         )
                     }
                 }
                 for (i in 0 until 5) {
-                    screenHandler.inventory.setStack(i, kit.getStack(36 + i).copy())
+                    screenHandler.container.setItem(i, kit.getItem(36 + i).copy())
                 }
                 for (i in 5 until 9) {
-                    screenHandler.inventory.setStack(i, ItemStack(Items.BARRIER))
+                    screenHandler.container.setItem(i, ItemStack(Items.BARRIER))
                 }
                 return screenHandler
             }
 
-            override fun getDisplayName(): Text = Text.literal("Default kit")
+            override fun getDisplayName(): Component = Component.literal("Default kit")
         })
     }
 }
