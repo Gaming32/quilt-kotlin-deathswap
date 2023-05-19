@@ -88,7 +88,7 @@ abstract class BetterConfig<T : BetterConfig<T>>(
                                 } else {
                                     configItem.value = newValue
                                     save(configItem)
-                                    source.sendSuccess(configItem.toText(), false)
+                                    source.sendSuccess(configItem.toText(), true)
                                 }
                             } else {
                                 source.sendSuccess(configItem.toText(), false)
