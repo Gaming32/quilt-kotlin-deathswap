@@ -1,7 +1,6 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.DeathSwapConfig.DeathSwapConfigStatic.writeDefaultKit
-import io.github.gaming32.qkdeathswap.mixin.ObjectiveCriteriaAccessor
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandRuntimeException
 import net.minecraft.commands.SharedSuggestionProvider
@@ -28,6 +27,7 @@ import net.minecraft.world.level.GameRules
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import net.minecraft.world.scores.Team.Visibility
+import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qkl.library.brigadier.argument.literal
@@ -51,31 +51,31 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
-import kotlin.io.path.exists
-
+import kotlin.io.path.createDirectories
+import kotlin.io.path.div
 
 const val MOD_ID = "qkdeathswap"
 
 object DeathSwapMod : ModInitializer {
     @JvmField val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
 
-    val configDir: Path = QuiltLoader.getConfigDir().resolve(MOD_ID)
-    val configFile: Path = configDir.resolve("deathswap.toml")
+    val configDir: Path = QuiltLoader.getConfigDir() / MOD_ID
+    val configFile: Path = configDir / "deathswap.toml"
 
-    val presetsDir: Path = configDir.resolve("presets")
+    val cacheDir: Path = QuiltLoader.getGameDir() / "cache" / MOD_ID
 
-    val defaultKitStoreLocation: File = configDir.resolve("default_kit.dat").toFile()
+    val presetsDir: Path = configDir / "presets"
 
-    val itemCountCriterion = ObjectiveCriteriaAccessor.callRegisterCustom("$MOD_ID:item_count")!!
+    val defaultKitStoreLocation: File = (configDir / "default_kit.dat").toFile()
+
+    val itemCountCriterion = ObjectiveCriteria.registerCustom("$MOD_ID:item_count")!!
 
     override fun onInitialize(mod: ModContainer) {
-        if (!configDir.exists()) {
-            configDir.toFile().mkdirs()
-        }
+        configDir.createDirectories()
+        cacheDir.createDirectories()
+        presetsDir.createDirectories()
 
-        if (!presetsDir.exists()) {
-            presetsDir.toFile().mkdirs()
-        }
+//        val image = ResourcePackManager.getTexture(ResourceLocation("textures/block/diorite.png"))
 
         registerEvents {
             onCommandRegistration { _, _ ->
@@ -159,7 +159,7 @@ object DeathSwapMod : ModInitializer {
                                         source.sendSuccess(
                                             Component.literal("Failed to save preset ")
                                                 .append(Component.literal(preset).withStyle(ChatFormatting.RED))
-                                                .append(Component.literal(". ").append(Component.literal(e.message).withStyle(ChatFormatting.RED))), false
+                                                .append(Component.literal(". ").append(Component.literal(e.message ?: "").withStyle(ChatFormatting.RED))), false
                                         )
                                     }
                                 }
