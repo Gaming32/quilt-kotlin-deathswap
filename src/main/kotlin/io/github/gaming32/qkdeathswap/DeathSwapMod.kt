@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.DeathSwapConfig.DeathSwapConfigStatic.writeDefaultKit
+import io.github.gaming32.qkdeathswap.map.drawImage
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandRuntimeException
 import net.minecraft.commands.SharedSuggestionProvider
@@ -23,6 +24,7 @@ import net.minecraft.world.inventory.ClickType
 import net.minecraft.world.inventory.MenuType
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.item.MapItem
 import net.minecraft.world.level.GameRules
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
@@ -30,10 +32,7 @@ import net.minecraft.world.scores.Team.Visibility
 import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
-import org.quiltmc.qkl.library.brigadier.argument.literal
-import org.quiltmc.qkl.library.brigadier.argument.player
-import org.quiltmc.qkl.library.brigadier.argument.string
-import org.quiltmc.qkl.library.brigadier.argument.value
+import org.quiltmc.qkl.library.brigadier.argument.*
 import org.quiltmc.qkl.library.brigadier.execute
 import org.quiltmc.qkl.library.brigadier.optional
 import org.quiltmc.qkl.library.brigadier.register
@@ -75,12 +74,10 @@ object DeathSwapMod : ModInitializer {
         cacheDir.createDirectories()
         presetsDir.createDirectories()
 
-//        val image = ResourcePackManager.getTexture(ResourceLocation("textures/block/diorite.png"))
-
         registerEvents {
             onCommandRegistration { _, _ ->
                 register("deathswap") {
-                    requires { it.hasPermission(1) }
+                    requires { it.hasPermission(2) }
                     required(literal("start")) {
                         execute {
                             try {
@@ -240,6 +237,12 @@ object DeathSwapMod : ModInitializer {
                             }
                         }
                     }
+                    required(literal("reloadtextures")) {
+                        execute {
+                            ResourcePackManager.reloadTextures()
+                            source.sendSuccess(Component.literal("Reloaded textures"), true)
+                        }
+                    }
                     if (DeathSwapConfig.enableDebug.value) {
                         required(literal("debug")) {
                             required(literal("swap_now")) {
@@ -252,6 +255,20 @@ object DeathSwapMod : ModInitializer {
                                     source.sendSuccess(Component.literal(
                                         "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
                                     ), false)
+                                }
+                            }
+                            required(literal("texture_map")) {
+                                required(identifier("texture")) { getTexture ->
+                                    execute {
+                                        val player = source.playerOrException
+                                        val stack = MapItem.create(player.level, 0, 0, 0, false, false)
+                                        MapItem.lockMap(player.level, stack)
+                                        player.inventory.add(stack)
+                                        val image = ResourcePackManager.getTexture(getTexture().value())
+                                        MapItem.getSavedData(stack, player.level)!!
+                                            .drawImage(image, scale = 128 / maxOf(image.width, image.height))
+                                        player.inventoryMenu.broadcastChanges()
+                                    }
                                 }
                             }
                         }

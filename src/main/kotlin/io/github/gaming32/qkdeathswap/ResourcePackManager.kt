@@ -9,7 +9,6 @@ import net.minecraft.server.packs.PackType
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.qsl.resource.loader.api.QuiltResourcePack
 import java.awt.Color
-import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.InputStream
@@ -29,9 +28,11 @@ object ResourcePackManager {
     private val fallbackTexture = run {
         val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
         val g = image.createGraphics()
+        g.color = Color.BLACK
+        g.fillRect(0, 0, 16, 16)
         g.color = Color(0xf800f8)
-        g.drawRect(8, 0, 8, 8)
-        g.drawRect(0, 8, 8, 8)
+        g.fillRect(8, 0, 8, 8)
+        g.fillRect(0, 8, 8, 8)
         g.dispose()
         image
     }
@@ -40,7 +41,7 @@ object ResourcePackManager {
 
     private val imageCache = CacheBuilder.newBuilder()
         .expireAfterAccess(5.minutes.toJavaDuration())
-        .build<ResourceLocation, Image>(CacheLoader.from { location ->
+        .build<ResourceLocation, BufferedImage>(CacheLoader.from { location ->
             getInputStream(QuiltResourcePack.getResourcePath(PackType.CLIENT_RESOURCES, location))
                 ?.let(ImageIO::read)
                 ?: fallbackTexture
@@ -102,5 +103,5 @@ object ResourcePackManager {
         imageCache.invalidateAll()
     }
 
-    fun getTexture(texture: ResourceLocation): Image = imageCache[texture]
+    fun getTexture(texture: ResourceLocation): BufferedImage = imageCache[texture]
 }

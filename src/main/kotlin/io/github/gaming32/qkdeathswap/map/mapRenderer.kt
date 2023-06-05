@@ -31,10 +31,12 @@ fun BufferedImage.toMapPixels(): ByteArray {
 }
 
 private val exactColors = Int2ByteOpenHashMap(62 * 4).apply {
-    for (i in 3 until 62 * 4) {
+    for (i in 4 until 62 * 4) {
         put(MaterialColor.getColorFromPackedId(i) or 0xff000000.toInt(), i.toByte())
     }
 }
+
+private fun Int.bgr() = (this and 0x0000ff shl 16) or (this and 0x00ff00) or (this and 0xff0000 shr 16)
 
 fun Color.matchToMapColor() =
     if (alpha < 128) {
@@ -42,8 +44,8 @@ fun Color.matchToMapColor() =
     } else {
         var index = 0
         var best = -1.0
-        for (i in 3 until 62 * 4) {
-            val distance = colorDistance(this, Color(MaterialColor.getColorFromPackedId(i)))
+        for (i in 4 until 62 * 4) {
+            val distance = colorDistance(this, Color(MaterialColor.getColorFromPackedId(i).bgr(), true))
             if (distance < best || best == -1.0) {
                 best = distance
                 index = i
