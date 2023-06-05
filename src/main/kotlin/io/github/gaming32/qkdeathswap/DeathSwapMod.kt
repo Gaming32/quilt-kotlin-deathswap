@@ -8,11 +8,8 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
-import net.minecraft.network.PacketSendListener
-import net.minecraft.network.chat.CommonComponents
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.HoverEvent
-import net.minecraft.network.protocol.game.ClientboundPlayerCombatKillPacket
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleContainer
@@ -25,10 +22,8 @@ import net.minecraft.world.inventory.MenuType
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.MapItem
-import net.minecraft.world.level.GameRules
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
-import net.minecraft.world.scores.Team.Visibility
 import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
@@ -43,8 +38,8 @@ import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.onPlayReady
 import org.quiltmc.qkl.library.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
-import org.quiltmc.qsl.entity.event.api.EntityReviveEvents.AFTER_TOTEM
 import org.quiltmc.qsl.entity.event.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
+import org.quiltmc.qsl.entity.event.api.LivingEntityDeathCallback
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -276,52 +271,10 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            AFTER_TOTEM.register { entity, _ ->
-                if (entity !is ServerPlayer) {
-                    return@register false
-                }
-                if (!DeathSwapStateManager.hasBegun()) {
-                    return@register false
-                }
-                val showDeathMessages = entity.level.gameRules.getBoolean(GameRules.RULE_SHOWDEATHMESSAGES)
-                if (showDeathMessages) {
-                    val text = entity.combatTracker.deathMessage
-                    entity.connection.send(
-                        ClientboundPlayerCombatKillPacket(entity.combatTracker, text),
-                        PacketSendListener.exceptionallySend {
-                            val string = text.getString(256)
-                            val text2 = Component.translatable(
-                                "death.attack.message_too_long",
-                                *arrayOf<Any>(
-                                    Component.literal(string).withStyle(ChatFormatting.YELLOW)
-                                )
-                            )
-                            val text3 = Component.translatable(
-                                "death.attack.even_more_magic",
-                                *arrayOf(entity.displayName)
-                            )
-                                .withStyle {
-                                    it.withHoverEvent(HoverEvent(
-                                        HoverEvent.Action.SHOW_TEXT,
-                                        text2
-                                    ))
-                                }
-                            ClientboundPlayerCombatKillPacket(entity.combatTracker, text3)
-                        }
-                    )
-                    val abstractTeam = entity.team
-                    if (abstractTeam == null || abstractTeam.deathMessageVisibility == Visibility.ALWAYS) {
-                        entity.server.playerList.broadcastSystemMessage(text, false)
-                    } else if (abstractTeam.deathMessageVisibility == Visibility.HIDE_FOR_OTHER_TEAMS) {
-                        entity.server.playerList.broadcastSystemToTeam(entity, text)
-                    } else if (abstractTeam.deathMessageVisibility == Visibility.HIDE_FOR_OWN_TEAM) {
-                        entity.server.playerList.broadcastSystemToAllExceptTeam(entity, text)
-                    }
-                } else {
-                    entity.connection.send(ClientboundPlayerCombatKillPacket(entity.combatTracker, CommonComponents.EMPTY))
-                }
+            LivingEntityDeathCallback.EVENT.register { entity, _ ->
+                if (entity !is ServerPlayer || !DeathSwapStateManager.hasBegun()) return@register
                 DeathSwapStateManager.removePlayer(entity)
-                !showDeathMessages
+                entity.connection.send(ClientboundContainerClosePacket(-1))
             }
 
             onServerTickEnd {
