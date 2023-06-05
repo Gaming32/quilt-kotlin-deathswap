@@ -8,7 +8,8 @@
     "MixinInventoryChangeTrigger",
     "MixinLivingEntity",
     "MixinMob",
-    "MixinResultSlot"
+    "MixinResultSlot",
+    "WardenSpawnTrackerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

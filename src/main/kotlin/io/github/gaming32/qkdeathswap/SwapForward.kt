@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import io.github.gaming32.qkdeathswap.mixin.EntityAccessor
+import io.github.gaming32.qkdeathswap.mixin.WardenSpawnTrackerAccessor
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
@@ -32,6 +33,8 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
     } else {
         null
     }
+
+    private val wardenTracker = nextPlayer.wardenSpawnTracker.get()
 
     private val air = nextPlayer.airSupply
 
@@ -147,6 +150,7 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
             (it as NeutralMob).persistentAngerTarget = thisPlayer.uuid
             it.target = thisPlayer
         }
+        (thisPlayer.wardenSpawnTracker.get() as WardenSpawnTrackerAccessor).invokeCopyData(wardenTracker)
     }
 
 }

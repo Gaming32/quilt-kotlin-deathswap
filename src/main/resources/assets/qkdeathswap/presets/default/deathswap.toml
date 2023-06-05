@@ -1,0 +1,21 @@
+dimension = "minecraft:the_overworld"
+resistance_time = 600
+teleport_load_time = 40
+enable_debug = false
+[swap_time]
+	min = 1200
+	max = 3600
+	warn = 0
+[spread_distance]
+	min = 10000
+	max = 20000
+[swap_options]
+	mount = true
+	health = false
+	hunger = false
+	mob_aggression = true
+	fire = false
+	air = false
+	frozen = false
+	potion_effects = false
+	inventory = false

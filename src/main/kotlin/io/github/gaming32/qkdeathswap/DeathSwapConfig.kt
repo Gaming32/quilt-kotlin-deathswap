@@ -161,7 +161,7 @@ open class DeathSwapConfig(
 
     val swapMobAggression = swapOptionsGroup.setting(
         "mob_aggression",
-        false,
+        true,
         BoolArgumentType.bool()
     )
 
