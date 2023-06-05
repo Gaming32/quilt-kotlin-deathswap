@@ -193,6 +193,9 @@ object DeathSwapStateManager {
             swapTargets.clear()
             shuffledPlayers = null
             state = GameState.STARTED
+            if (!DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+                endSwap()
+            }
         }
 
         var beginTime = timeToSwap
@@ -299,6 +302,12 @@ object DeathSwapStateManager {
         }
         DeathSwapMod.swapMode.prepareSwap(server)
 
+        if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+            endSwap()
+        }
+    }
+
+    private fun endSwap() {
         timeSinceLastSwap = 0
         timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
