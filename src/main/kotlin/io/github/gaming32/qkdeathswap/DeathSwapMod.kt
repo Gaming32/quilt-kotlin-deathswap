@@ -43,7 +43,7 @@ import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.onPlayReady
 import org.quiltmc.qkl.library.registerEvents
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer
-import org.quiltmc.qsl.entity.event.api.EntityReviveEvents.BEFORE_TOTEM
+import org.quiltmc.qsl.entity.event.api.EntityReviveEvents.AFTER_TOTEM
 import org.quiltmc.qsl.entity.event.api.EntityWorldChangeEvents.AFTER_PLAYER_WORLD_CHANGE
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -276,10 +276,12 @@ object DeathSwapMod : ModInitializer {
                 }
             }
 
-            BEFORE_TOTEM.register { entity, _ ->
-                if (entity !is ServerPlayer) return@register false
+            AFTER_TOTEM.register { entity, _ ->
+                if (entity !is ServerPlayer) {
+                    return@register false
+                }
                 if (!DeathSwapStateManager.hasBegun()) {
-                    return@register true
+                    return@register false
                 }
                 val showDeathMessages = entity.level.gameRules.getBoolean(GameRules.RULE_SHOWDEATHMESSAGES)
                 if (showDeathMessages) {
