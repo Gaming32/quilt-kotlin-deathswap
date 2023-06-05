@@ -48,22 +48,36 @@ object ResourcePackManager {
         })
 
     private fun getInputStream(path: String): InputStream? {
-        getResourcePack()?.getPath(path)?.successOrNull<IOException, _, _> { inputStream() }?.let { return it }
+        getResourcePack()?.getPath(path)?.tryGetInputStream()?.let { return it }
         for (mod in QuiltLoader.getAllMods()) {
             mod.getPath(path)?.tryGetInputStream()?.let { return it }
         }
         return getGameJar()?.getPath(path)?.tryGetInputStream()
     }
 
-    private fun Path.tryGetInputStream() = successOrNull<IOException, _, _> { inputStream() }
+    private fun Path.tryGetInputStream() = try {
+        inputStream()
+    } catch (e: IOException) {
+        if (e !is NoSuchFileException) {
+            DeathSwapMod.LOGGER.error("Failed to get resource $this", e)
+        }
+        null
+    }
 
     private fun getResourcePack() = resourcePack
-        ?: FileSystems.newFileSystem(RESOURCEPACK_PATH, mapOf("create" to true))
-            .apply { resourcePack = this }
+        ?: try {
+            FileSystems.newFileSystem(RESOURCEPACK_PATH, mapOf("create" to true)).apply { resourcePack = this }
+        } catch (e: IOException) {
+            DeathSwapMod.LOGGER.error("Failed to load resourcepack", e)
+            null
+        }
 
     private fun getGameJar() = try {
         gameJar ?: FileSystems.newFileSystem(GAME_JAR_PATH).apply { gameJar = this }
     } catch (e1: IOException) {
+        if (e1 !is NoSuchFileException) {
+            DeathSwapMod.LOGGER.error("Failed to read game JAR", e1)
+        }
         try {
             DeathSwapMod.LOGGER.info("Downloading client.jar for its resourcepack")
             URL("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
