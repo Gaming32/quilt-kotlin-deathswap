@@ -7,10 +7,7 @@ import net.minecraft.world.entity.player.Inventory
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.exists
-import kotlin.io.path.inputStream
-import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.*
 
 object Presets {
 
@@ -23,13 +20,13 @@ object Presets {
     }
 
     fun load(preset: String) : Boolean {
-        val configFile = DeathSwapMod.presetsDir.resolve("$preset/deathswap.toml")
+        val configFile = DeathSwapMod.presetsDir / "$preset/deathswap.toml"
         if (configFile.exists()) {
-            val kitPreset = DeathSwapMod.presetsDir.resolve("$preset/default_kit.dat")
+            val kitPreset = DeathSwapMod.presetsDir / "$preset/default_kit.dat"
             if (kitPreset.exists()) {
-                Files.copy(kitPreset, DeathSwapMod.configDir.resolve("default_kit.dat"), StandardCopyOption.REPLACE_EXISTING)
+                Files.copy(kitPreset, DeathSwapMod.configDir / "default_kit.dat", StandardCopyOption.REPLACE_EXISTING)
             } else {
-                DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
+                (DeathSwapMod.configDir / "default_kit.dat").deleteIfExists()
             }
             configFile.inputStream().use {
                 DeathSwapConfig.copyFrom(DeathSwapConfig(it))
@@ -44,11 +41,11 @@ object Presets {
                     if (kitFileInputStream != null) {
                         Files.copy(
                             kitFileInputStream,
-                            DeathSwapMod.configDir.resolve("default_kit.dat"),
+                            DeathSwapMod.configDir / "default_kit.dat",
                             StandardCopyOption.REPLACE_EXISTING
                         )
                     } else {
-                        DeathSwapMod.configDir.resolve("default_kit.dat").deleteIfExists()
+                        (DeathSwapMod.configDir / "default_kit.dat").deleteIfExists()
                     }
                 }
                 DeathSwapConfig.copyFrom(DeathSwapConfig(configStream))
@@ -59,7 +56,7 @@ object Presets {
     }
 
     private fun findPresetConfig(preset: String): InputStream? {
-        val configFile = DeathSwapMod.presetsDir.resolve("$preset/deathswap.toml")
+        val configFile = DeathSwapMod.presetsDir / "$preset/deathswap.toml"
         return if (configFile.exists()) {
             Files.newInputStream(configFile)
         } else {
@@ -68,7 +65,7 @@ object Presets {
     }
 
     private fun findPresetKit(preset: String): InputStream? {
-        val kitPreset = DeathSwapMod.presetsDir.resolve("$preset/default_kit.dat")
+        val kitPreset = DeathSwapMod.presetsDir / "$preset/default_kit.dat"
         return if (kitPreset.exists()) {
             Files.newInputStream(kitPreset)
         } else {
@@ -89,6 +86,7 @@ object Presets {
     fun previewKit(preset: String): Inventory? {
         findPresetKit(preset).use { stream ->
             return if (stream != null) {
+                @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
                 return Inventory(null).apply {
                     load(
                         NbtIo.readCompressed(DeathSwapMod.defaultKitStoreLocation)
@@ -103,20 +101,20 @@ object Presets {
 
     fun save(preset: String) {
         DeathSwapConfig.save()
-        val configFile = DeathSwapMod.configDir.resolve("deathswap.toml")
-        val presetFolder = DeathSwapMod.presetsDir.resolve(preset)
+        val configFile = DeathSwapMod.configDir / "deathswap.toml"
+        val presetFolder = DeathSwapMod.presetsDir / preset
         if (!presetFolder.exists()) {
             presetFolder.toFile().mkdirs()
         }
-        Files.copy(configFile, presetFolder.resolve("deathswap.toml"), StandardCopyOption.REPLACE_EXISTING)
-        val kitFile = DeathSwapMod.configDir.resolve("default_kit.dat")
+        Files.copy(configFile, presetFolder / "deathswap.toml", StandardCopyOption.REPLACE_EXISTING)
+        val kitFile = DeathSwapMod.configDir / "default_kit.dat"
         if (kitFile.exists()) {
-            Files.copy(kitFile, presetFolder.resolve("default_kit.dat"), StandardCopyOption.REPLACE_EXISTING)
+            Files.copy(kitFile, presetFolder / "default_kit.dat", StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
     fun delete(preset: String) : Boolean {
-        val presetDir = DeathSwapMod.presetsDir.resolve(preset)
+        val presetDir = DeathSwapMod.presetsDir / preset
         return if (presetDir.exists()) {
             Files.walk(presetDir).forEach {
                 it.deleteIfExists()
