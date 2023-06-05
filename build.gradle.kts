@@ -29,6 +29,10 @@ dependencies {
     modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.0.2+kt.1.8.20+flk.1.9.3")
 }
 
+loom {
+    serverOnlyMinecraftJar()
+}
+
 tasks.processResources {
     inputs.property("version", version)
 

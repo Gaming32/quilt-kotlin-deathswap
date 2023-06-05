@@ -24,7 +24,7 @@ import kotlin.time.toJavaDuration
 object ResourcePackManager {
     val GAME_VERSION = SharedConstants.getCurrentVersion().id!!
     val RESOURCEPACK_PATH = DeathSwapMod.configDir / "resourcepack.zip"
-    val GAME_JAR_PATH = DeathSwapMod.configDir / "mc-$GAME_VERSION.jar"
+    val GAME_JAR_PATH = DeathSwapMod.cacheDir / "mc-$GAME_VERSION.jar"
 
     private val fallbackTexture = run {
         val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
@@ -85,6 +85,7 @@ object ResourcePackManager {
                 .let(::URL)
                 .openStream()
                 .use { Files.copy(it, GAME_JAR_PATH, StandardCopyOption.REPLACE_EXISTING) }
+            DeathSwapMod.LOGGER.info("Done downloading client.jar for its resourcepack")
             FileSystems.newFileSystem(GAME_JAR_PATH).apply { gameJar = this }
         } catch (e2: IOException) {
             e2.addSuppressed(e1)
