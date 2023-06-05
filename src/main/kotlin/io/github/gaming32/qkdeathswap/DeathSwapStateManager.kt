@@ -81,7 +81,7 @@ object DeathSwapStateManager {
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
             livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getLevel(ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value)) ?: server.getLevel(Level.OVERWORLD)!!,
+                server.getLevel(ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)) ?: server.getLevel(Level.OVERWORLD)!!,
                 x, z
             ))
             playerAngle += playerAngleChange
@@ -119,9 +119,11 @@ object DeathSwapStateManager {
     }
 
     fun endGame(server: MinecraftServer, natural: Boolean = true) {
+        DeathSwapMod.swapMode.endMatch(server)
+
         if (natural) {
             val winner = when (DeathSwapConfig.gameMode.value) {
-                DeathSwapGameMode.ITEM_COUNT -> livingPlayers.values.maxBy { it.itemsCollected.size }
+                DeathSwapGameMode.ITEM_COUNT -> livingPlayers.values.maxByOrNull { it.itemsCollected.size }
                 else -> livingPlayers.values.firstOrNull()
             }
             val name = winner?.displayName ?: Component.literal("Nobody")
@@ -161,7 +163,11 @@ object DeathSwapStateManager {
             player.inventory.copyFrom(DeathSwapConfig.defaultKit)
             player.enderChestInventory.removeAllItems()
         }
-        player.setRespawnPosition(null, null, 0f, false, false) // If pos is null, the rest of the arguments are ignored
+        player.setRespawnPosition(
+            @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+            null, // If pos is null, the rest of the arguments are ignored
+            null, 0f, false, false
+        )
         player.removeAllEffects()
     }
 
@@ -339,9 +345,10 @@ object DeathSwapStateManager {
                 return@let
             }
             holder.itemsCollected += stack.item
-            holder.player?.scoreboard?.forAllObjectives(DeathSwapMod.itemCountCriterion, holder.player?.scoreboardName) {
-                it.score = holder.itemsCollected.size
-            }
+            holder.player?.scoreboard
+                ?.forAllObjectives(DeathSwapMod.itemCountCriterion, holder.player!!.scoreboardName) {
+                    it.score = holder.itemsCollected.size
+                }
         }
     }
 

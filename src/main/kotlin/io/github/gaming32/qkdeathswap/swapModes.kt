@@ -9,16 +9,14 @@ import qouteall.imm_ptl.core.chunk_loading.DimensionalChunkPos
 interface SwapMode {
     val preSwapHappensAtPrepare: Boolean
 
-    fun prepareSwap(server: MinecraftServer)
+    fun prepareSwap(server: MinecraftServer) = Unit
 
-    fun beforeSwap(server: MinecraftServer)
+    fun beforeSwap(server: MinecraftServer) = Unit
+
+    fun endMatch(server: MinecraftServer) = Unit
 
     object Simple : SwapMode {
         override val preSwapHappensAtPrepare get() = true
-
-        override fun prepareSwap(server: MinecraftServer) = Unit
-
-        override fun beforeSwap(server: MinecraftServer) = Unit
     }
 
     object ImmersivePortals : SwapMode {
@@ -41,10 +39,13 @@ interface SwapMode {
             chunkLoaders[player] = loader
         }
 
-        override fun beforeSwap(server: MinecraftServer) {
-            server.playerList.players.forEach {
-                PortalAPI.removeChunkLoaderForPlayer(it, chunkLoaders.remove(it) ?: return@forEach)
-            }
+        override fun beforeSwap(server: MinecraftServer) = clearChunkLoaders()
+
+        override fun endMatch(server: MinecraftServer) = clearChunkLoaders()
+
+        private fun clearChunkLoaders() {
+            chunkLoaders.forEach(PortalAPI::removeChunkLoaderForPlayer)
+            chunkLoaders.clear()
         }
     }
 }
