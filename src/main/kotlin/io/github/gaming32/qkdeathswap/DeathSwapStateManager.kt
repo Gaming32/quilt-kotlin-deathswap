@@ -169,6 +169,7 @@ object DeathSwapStateManager {
             null, 0f, false, false
         )
         player.removeAllEffects()
+        player.wardenSpawnTracker.get().reset()
     }
 
     fun tick(server: MinecraftServer) {
