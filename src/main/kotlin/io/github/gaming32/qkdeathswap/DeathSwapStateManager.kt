@@ -27,7 +27,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.random.nextInt
 
-private val ONE_DIGIT_FORMAT = DecimalFormat(".0")
+private val ONE_DIGIT_FORMAT = DecimalFormat("0.0")
 
 enum class GameState {
     NOT_STARTED, STARTING, STARTED, TELEPORTING;
@@ -109,7 +109,8 @@ object DeathSwapStateManager {
             LightningBolt(
                 EntityType.LIGHTNING_BOLT,
                 player.level
-            ).apply { setVisualOnly(true) })
+            ).apply { setVisualOnly(true) }
+        )
         resetPlayer(player, gamemode = GameType.SPECTATOR)
         livingPlayers.remove(player.uuid)
         if (livingPlayers.size < 2) {
@@ -217,7 +218,7 @@ object DeathSwapStateManager {
                 }
                 if (withinWarnTime) {
                     text2.append(
-                        Component.literal(" ${ONE_DIGIT_FORMAT.format((timeToSwap - timeSinceLastSwap) / 20.0)} seconds")
+                        Component.literal("  Swap in ${ONE_DIGIT_FORMAT.format((timeToSwap - timeSinceLastSwap) / 20.0)} seconds")
                             .withStyle(ChatFormatting.DARK_RED)
                     )
                 }
