@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.level.Level
+import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlParser
@@ -211,7 +212,7 @@ open class DeathSwapConfig(
 
     val enableDebug = setting<Boolean, Unit>(
         "enable_debug",
-        false,
+        QuiltLoader.isDevelopmentEnvironment(),
         null
     )
 

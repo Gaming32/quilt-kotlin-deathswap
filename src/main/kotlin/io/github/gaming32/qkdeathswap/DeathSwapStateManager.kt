@@ -59,6 +59,8 @@ object DeathSwapStateManager {
 
     val livingPlayers = mutableMapOf<UUID, PlayerHolder>()
 
+    var shuffledPlayers: List<ServerPlayer>? = null
+        private set
     private val swapTargets = mutableSetOf<SwapForward>()
 
     fun hasBegun(): Boolean {
@@ -170,14 +172,28 @@ object DeathSwapStateManager {
             return
         }
 
-        if (timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value) {
+        val shouldSwap = if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+            timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value && state == GameState.TELEPORTING
+        } else {
+            timeSinceLastSwap > timeToSwap
+        }
+        if (shouldSwap) {
+            if (!DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+                preSwap(server)
+            }
+            DeathSwapMod.swapMode.beforeSwap(server)
             swapTargets.forEach { it.swap(livingPlayers.size > 2) }
             swapTargets.clear()
+            shuffledPlayers = null
             state = GameState.STARTED
         }
 
-        if (timeSinceLastSwap > timeToSwap) {
-            beginSwap(server)
+        var beginTime = timeToSwap
+        if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+            beginTime -= DeathSwapConfig.teleportLoadTime.value
+        }
+        if (timeSinceLastSwap > beginTime) {
+            prepareSwap(server)
         }
 
         val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value
@@ -261,7 +277,26 @@ object DeathSwapStateManager {
         }
     }
 
-    private fun beginSwap(server: MinecraftServer) {
+    private fun prepareSwap(server: MinecraftServer) {
+        val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
+            val entity = player.value.player
+            if (entity == null) {
+                removePlayer(player.key, Component.literal(" timed out during swap").withStyle(ChatFormatting.RED))
+            }
+            entity
+        }
+        this.shuffledPlayers = shuffledPlayers
+
+        if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+            preSwap(server)
+        }
+        DeathSwapMod.swapMode.prepareSwap(server)
+
+        timeSinceLastSwap = 0
+        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
+    }
+
+    private fun preSwap(server: MinecraftServer) {
         if (DeathSwapConfig.gameMode.value.limitedSwapCount && swapCount++ >= (DeathSwapConfig.swapLimit.value)) {
             endGame(server)
             return
@@ -277,13 +312,7 @@ object DeathSwapStateManager {
             }
         }
 
-        val shuffledPlayers = livingPlayers.entries.shuffled().mapNotNull { player ->
-            val entity = player.value.player
-            if (entity == null) {
-                removePlayer(player.key, Component.literal(" timed out during swap").withStyle(ChatFormatting.RED))
-            }
-            entity
-        }
+        val shuffledPlayers = this.shuffledPlayers!!
 
         if (shuffledPlayers.size < 2) {
             return
@@ -297,9 +326,6 @@ object DeathSwapStateManager {
         swapTargets.add(SwapForward(shuffledPlayers.last(), shuffledPlayers[0]))
         state = GameState.TELEPORTING
         swapTargets.forEach { it.preSwap() }
-
-        timeSinceLastSwap = 0
-        timeToSwap = Random.nextInt(DeathSwapConfig.swapTime)
     }
 
     fun onInventoryChanged(player: ServerPlayer, stack: ItemStack) {

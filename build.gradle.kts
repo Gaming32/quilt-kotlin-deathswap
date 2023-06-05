@@ -14,6 +14,8 @@ repositories {
         name = "ParchmentMC"
         url = uri("https://maven.parchmentmc.org")
     }
+
+    maven("https://jitpack.io")
 }
 
 dependencies {
@@ -27,6 +29,11 @@ dependencies {
 
     modImplementation(libs.quilted.fabric.api)
     modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.0.2+kt.1.8.20+flk.1.9.3")
+
+    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:imm_ptl_core:v2.3.1-1.19") {
+        exclude(group = "net.fabricmc.fabric-api")
+        isTransitive = false
+    }
 }
 
 loom {
