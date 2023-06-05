@@ -206,7 +206,7 @@ object DeathSwapStateManager {
             prepareSwap(server)
         }
 
-        val withinWarnTime = timeToSwap - timeSinceLastSwap <= DeathSwapConfig.warnTime.value
+        val withinWarnTime = timeToSwap - timeSinceLastSwap < DeathSwapConfig.warnTime.value
         if (withinWarnTime || timeSinceLastSwap % 20 == 0) {
             var text = Component.literal(
                 "Time since last swap: ${ticksToMinutesSeconds(timeSinceLastSwap)}"
