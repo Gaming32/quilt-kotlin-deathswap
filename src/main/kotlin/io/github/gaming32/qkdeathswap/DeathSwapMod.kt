@@ -47,7 +47,6 @@ import java.io.IOException
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.div
-import kotlin.math.max
 
 const val MOD_ID = "qkdeathswap"
 
@@ -245,9 +244,7 @@ object DeathSwapMod : ModInitializer {
                         required(literal("debug")) {
                             required(literal("swap_now")) {
                                 execute {
-                                    DeathSwapStateManager.timeSinceLastSwap = max(
-                                        DeathSwapStateManager.timeToSwap - DeathSwapConfig.warnTime.value, 0
-                                    )
+                                    DeathSwapStateManager.timeSinceLastSwap = DeathSwapStateManager.timeToSwap - 1
                                 }
                             }
                             required(literal("swap_at")) {
