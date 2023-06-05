@@ -199,7 +199,7 @@ object DeathSwapStateManager {
         }
 
         var beginTime = timeToSwap
-        if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
+        if (!DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
             beginTime -= DeathSwapConfig.teleportLoadTime.value
         }
         if (timeSinceLastSwap > beginTime) {

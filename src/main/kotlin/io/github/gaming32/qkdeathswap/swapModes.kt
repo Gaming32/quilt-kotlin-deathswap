@@ -34,7 +34,7 @@ interface SwapMode {
 
         private fun chunkLoad(player: ServerPlayer, to: ServerPlayer) {
             chunkLoaders.remove(player)?.let { PortalAPI.removeChunkLoaderForPlayer(player, it) }
-            val loader = ChunkLoader(DimensionalChunkPos(to.level.dimension(), to.chunkPosition()), 4)
+            val loader = ChunkLoader(DimensionalChunkPos(to.level.dimension(), to.chunkPosition()), 4, true)
             PortalAPI.addChunkLoaderForPlayer(player, loader)
             chunkLoaders[player] = loader
         }
