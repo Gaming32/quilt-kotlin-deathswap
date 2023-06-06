@@ -7,6 +7,8 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.sounds.SoundSource
 import net.minecraft.util.StringRepresentable
 import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.effect.MobEffects
@@ -19,6 +21,7 @@ import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.entity.EntityTypeTest
 import org.quiltmc.qkl.library.networking.allPlayers
+import org.quiltmc.qkl.library.networking.playersTracking
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.PI
@@ -109,8 +112,21 @@ object DeathSwapStateManager {
             LightningBolt(
                 EntityType.LIGHTNING_BOLT,
                 player.level
-            ).apply { setVisualOnly(true) }
+            ).apply {
+                setPos(player.position())
+                setVisualOnly(true)
+            }
         )
+        val tracking = player.playersTracking
+        player.server.playerList.players.forEach {
+            if (it == player || it in tracking) return@forEach // It already played for them
+            it.playNotifySound(
+                SoundEvents.LIGHTNING_BOLT_THUNDER,
+                SoundSource.WEATHER,
+                10000.0f,
+                0.8f + player.level.random.nextFloat() * 0.2f
+            )
+        }
         resetPlayer(player, gamemode = GameType.SPECTATOR)
         livingPlayers.remove(player.uuid)
         if (livingPlayers.size < 2) {
