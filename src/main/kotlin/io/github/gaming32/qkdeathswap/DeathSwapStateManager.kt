@@ -18,7 +18,6 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
-import net.minecraft.world.level.Level
 import net.minecraft.world.level.entity.EntityTypeTest
 import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.playersTracking
@@ -84,7 +83,9 @@ object DeathSwapStateManager {
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
             livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getLevel(ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)) ?: server.getLevel(Level.OVERWORLD)!!,
+                server.getLevel(
+                    ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)
+                ) ?: server.overworld(),
                 x, z
             ))
             playerAngle += playerAngleChange
@@ -118,7 +119,7 @@ object DeathSwapStateManager {
             }
         )
         val tracking = player.playersTracking
-        player.server.playerList.players.forEach {
+        player.server.allPlayers.forEach {
             if (it == player || it in tracking) return@forEach // It already played for them
             it.playNotifySound(
                 SoundEvents.LIGHTNING_BOLT_THUNDER,
@@ -153,7 +154,7 @@ object DeathSwapStateManager {
 
         state = GameState.NOT_STARTED
         livingPlayers.clear()
-        val destWorld = server.getLevel(Level.OVERWORLD)!!
+        val destWorld = server.overworld()
         server.allPlayers.forEach { player ->
             player.teleport(destWorld.spawnLocation.copy(pitch = 0f))
             resetPlayer(player)
