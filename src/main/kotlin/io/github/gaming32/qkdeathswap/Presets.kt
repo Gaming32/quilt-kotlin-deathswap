@@ -6,13 +6,18 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.player.Inventory
 import java.io.InputStream
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import kotlin.io.path.*
 
 object Presets {
 
-    val builtin = listOf("classic", "the_end")
-
+    val builtin = DeathSwapMod.modContainer.getPath("data/qkdeathswap/presets")
+        .listDirectoryEntries()
+        .asSequence()
+        .map(Path::getFileName)
+        .map(Path::toString)
+        .toList()
 
     fun list(): List<String> {
         return builtin +

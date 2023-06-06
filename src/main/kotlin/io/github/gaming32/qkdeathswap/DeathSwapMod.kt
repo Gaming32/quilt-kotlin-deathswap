@@ -44,21 +44,22 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
-import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.div
 
 const val MOD_ID = "qkdeathswap"
 
 object DeathSwapMod : ModInitializer {
+    val modContainer = QuiltLoader.getModContainer(MOD_ID).get()
+
     @JvmField val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
 
-    val configDir: Path = QuiltLoader.getConfigDir() / MOD_ID
-    val configFile: Path = configDir / "deathswap.toml"
+    val configDir = QuiltLoader.getConfigDir() / MOD_ID
+    val configFile = configDir / "deathswap.toml"
 
-    val cacheDir: Path = QuiltLoader.getGameDir() / "cache" / MOD_ID
+    val cacheDir = QuiltLoader.getGameDir() / "cache" / MOD_ID
 
-    val presetsDir: Path = configDir / "presets"
+    val presetsDir = configDir / "presets"
 
     val defaultKitStoreLocation: File = (configDir / "default_kit.dat").toFile()
 
