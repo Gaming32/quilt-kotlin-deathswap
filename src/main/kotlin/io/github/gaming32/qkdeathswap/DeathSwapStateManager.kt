@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandRuntimeException
 import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -68,12 +69,8 @@ object DeathSwapStateManager {
         private set
     private val swapTargets = mutableSetOf<SwapForward>()
 
-    fun hasBegun(): Boolean {
-        return state != GameState.NOT_STARTED
-    }
-
     fun begin(server: MinecraftServer) {
-        if (hasBegun()) {
+        if (state > GameState.NOT_STARTED) {
             throw CommandRuntimeException(Component.literal("Game already begun"))
         }
 
@@ -94,7 +91,7 @@ object DeathSwapStateManager {
                 x, z
             ))
             playerAngle += playerAngleChange
-            player.setGameMode(GameType.SPECTATOR)
+//            player.setGameMode(GameType.SPECTATOR)
         }
         server.allLevels.forEach { world ->
             world.setWeatherParameters(0, 0, false, false)
@@ -194,6 +191,7 @@ object DeathSwapStateManager {
         player.removeAllEffects()
         player.wardenSpawnTracker.get().reset()
         player.fallDistance = 0f
+        player.connection.send(ClientboundContainerClosePacket(0))
     }
 
     fun tick(server: MinecraftServer) {
@@ -293,9 +291,9 @@ object DeathSwapStateManager {
                     val spawnPos = loc.getPos()
                     entity.teleportTo(
                         loc.level,
-                        spawnPos.x.toDouble(),
+                        spawnPos.x + 0.5,
                         spawnPos.y.toDouble(),
-                        spawnPos.z.toDouble(),
+                        spawnPos.z + 0.5,
                         0f, 0f
                     )
 

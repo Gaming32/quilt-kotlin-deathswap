@@ -9,7 +9,6 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
 import net.minecraft.network.chat.Component
-import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleContainer
@@ -275,25 +274,29 @@ object DeathSwapMod : ModInitializer {
             }
 
             LivingEntityDeathCallback.EVENT.register { entity, _ ->
-                if (entity !is ServerPlayer || !DeathSwapStateManager.hasBegun()) return@register
-                DeathSwapStateManager.removePlayer(entity)
-                entity.connection.send(ClientboundContainerClosePacket(-1))
+                if (entity !is ServerPlayer || DeathSwapStateManager.state == GameState.NOT_STARTED) return@register
+                if (DeathSwapStateManager.state == GameState.STARTING) {
+                    val newEntity = entity.server.playerList.respawn(entity, true)
+                    newEntity.health = newEntity.maxHealth
+                } else {
+                    DeathSwapStateManager.removePlayer(entity)
+                }
             }
 
             onServerTickEnd {
-                if (DeathSwapStateManager.hasBegun()) {
+                if (DeathSwapStateManager.state > GameState.NOT_STARTED) {
                     DeathSwapStateManager.tick(this)
                 }
             }
 
             onPlayReady { _, _ ->
-                if (DeathSwapStateManager.hasBegun() && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
+                if (DeathSwapStateManager.state > GameState.NOT_STARTED && !DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                     DeathSwapStateManager.resetPlayer(player, gamemode = GameType.SPECTATOR)
                 }
             }
 
             AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
-                if (DeathSwapStateManager.hasBegun()) {
+                if (DeathSwapStateManager.state >= GameState.STARTED) {
                     if (origin.dimensionTypeId() == BuiltinDimensionTypes.END) {
                         if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
                             // Teleport player, so they aren't at spawn in the overworld
