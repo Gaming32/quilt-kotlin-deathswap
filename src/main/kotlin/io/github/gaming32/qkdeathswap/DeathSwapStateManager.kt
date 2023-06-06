@@ -302,7 +302,10 @@ object DeathSwapStateManager {
                 }
             }
             timeSinceLastSwap = 0
-            state = GameState.STARTED
+            if (state == GameState.STARTING) {
+                // If all the players logged off and were removed, the game will be in a NOT_STARTED state.
+                state = GameState.STARTED
+            }
             return
         }
         val endTime = System.nanoTime()
