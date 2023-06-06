@@ -141,6 +141,14 @@ open class DeathSwapConfig(
         textValue = ::formatTime
     )
 
+    val maxStartFindTime = setting(
+        "max_spawn_time",
+        20 * 30,
+        TimeArgument.time(),
+        "The maximum time to search for valid start locations.\nDefault 30 seconds",
+        textValue = ::formatTime
+    )
+
     private val swapOptionsGroup = group(
         "swap_options",
         "Options for modifiers on the swap"

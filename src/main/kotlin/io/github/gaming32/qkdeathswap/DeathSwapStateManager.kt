@@ -28,8 +28,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.random.nextInt
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 private val ONE_DIGIT_FORMAT = DecimalFormat("0.0")
 
@@ -57,7 +56,7 @@ object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
         private set
 
-    var timeSearchingForSpawn = Duration.ZERO
+    var spawnSearchStart = 0L
 
     var swapCount = 0
     var timeSinceLastSwap = 0
@@ -78,7 +77,7 @@ object DeathSwapStateManager {
             throw CommandRuntimeException(Component.literal("Game already begun"))
         }
 
-        timeSearchingForSpawn = Duration.ZERO
+        spawnSearchStart = System.currentTimeMillis()
         timeSinceLastSwap = 0
         state = GameState.STARTING
         livingPlayers.clear()
@@ -95,6 +94,7 @@ object DeathSwapStateManager {
                 x, z
             ))
             playerAngle += playerAngleChange
+            player.setGameMode(GameType.SPECTATOR)
         }
         server.allLevels.forEach { world ->
             world.setWeatherParameters(0, 0, false, false)
@@ -272,7 +272,6 @@ object DeathSwapStateManager {
 
     private fun tickStartingPositions(server: MinecraftServer) {
         DeathSwapMod.LOGGER.info("Finding starting positions tick #{}", ++timeSinceLastSwap)
-        val startTime = System.nanoTime()
         if (livingPlayers.values.all { it.startLocation.tick() }) {
             livingPlayers.forEach { entry ->
                 val loc = entry.value.startLocation
@@ -310,9 +309,7 @@ object DeathSwapStateManager {
             }
             return
         }
-        val endTime = System.nanoTime()
-        // TODO: Max time
-        timeSearchingForSpawn += (endTime - startTime).nanoseconds
+        val timeSearchingForSpawn = (System.currentTimeMillis() - spawnSearchStart).milliseconds
         val starting = Component.literal("Finding start locations: ")
             .append(Component.literal(
                 "${timeSearchingForSpawn.inWholeMinutes}:" +
@@ -321,6 +318,13 @@ object DeathSwapStateManager {
         )
         server.allPlayers.forEach { player ->
             player.displayClientMessage(starting, true)
+        }
+        if (timeSearchingForSpawn > (DeathSwapConfig.maxStartFindTime.value * 50).milliseconds) {
+            server.broadcast(
+                Component.literal("Took too long to find start locations! Going with what we've got.")
+                    .withStyle(ChatFormatting.RED)
+            )
+            livingPlayers.values.forEach { it.startLocation.forceFinalize() }
         }
     }
 

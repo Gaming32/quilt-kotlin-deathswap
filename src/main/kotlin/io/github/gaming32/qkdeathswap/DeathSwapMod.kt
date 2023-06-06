@@ -303,8 +303,16 @@ object DeathSwapMod : ModInitializer {
                                 if (holder.startLocation.level != destination) {
                                     var spawnPos = loc.getPos()
                                     val newLoc = PlayerStartLocation(destination, spawnPos.x, spawnPos.z)
-                                    // TODO: Max time
-                                    while (!loc.tick()) {}
+                                    val startTime = System.currentTimeMillis()
+                                    while (!newLoc.tick()) {
+                                        val searchTime = System.currentTimeMillis() - startTime
+                                        if (searchTime > DeathSwapConfig.maxStartFindTime.value * 50) {
+                                            player.sendSystemMessage(Component.literal(
+                                                "Took too long to find a respawn location! Going with what we've got."
+                                            ).withStyle(ChatFormatting.RED))
+                                            newLoc.forceFinalize()
+                                        }
+                                    }
                                     spawnPos = newLoc.getPos()
                                     player.teleportTo(
                                         newLoc.level,
