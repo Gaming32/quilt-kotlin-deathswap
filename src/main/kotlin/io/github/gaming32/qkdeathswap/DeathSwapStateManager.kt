@@ -28,6 +28,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 import kotlin.random.nextInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
 private val ONE_DIGIT_FORMAT = DecimalFormat("0.0")
 
@@ -53,7 +55,9 @@ class PlayerHolder(serverPlayerEntity: ServerPlayer, var startLocation: PlayerSt
 
 object DeathSwapStateManager {
     var state = GameState.NOT_STARTED
-    private set
+        private set
+
+    var timeSearchingForSpawn = Duration.ZERO
 
     var swapCount = 0
     var timeSinceLastSwap = 0
@@ -74,6 +78,8 @@ object DeathSwapStateManager {
             throw CommandRuntimeException(Component.literal("Game already begun"))
         }
 
+        timeSearchingForSpawn = Duration.ZERO
+        timeSinceLastSwap = 0
         state = GameState.STARTING
         livingPlayers.clear()
         var playerAngle = Random.nextDouble(0.0, PI * 2)
@@ -190,12 +196,11 @@ object DeathSwapStateManager {
     }
 
     fun tick(server: MinecraftServer) {
-        timeSinceLastSwap++
-
         if (state == GameState.STARTING) {
             tickStartingPositions(server)
             return
         }
+        timeSinceLastSwap++
 
         val shouldSwap = if (DeathSwapMod.swapMode.preSwapHappensAtPrepare) {
             timeSinceLastSwap > DeathSwapConfig.teleportLoadTime.value && state == GameState.TELEPORTING
@@ -265,6 +270,8 @@ object DeathSwapStateManager {
     }
 
     private fun tickStartingPositions(server: MinecraftServer) {
+        DeathSwapMod.LOGGER.info("Finding starting positions tick #{}", ++timeSinceLastSwap)
+        val startTime = System.nanoTime()
         if (livingPlayers.values.all { it.startLocation.tick() }) {
             livingPlayers.forEach { entry ->
                 val loc = entry.value.startLocation
@@ -296,12 +303,18 @@ object DeathSwapStateManager {
             }
             timeSinceLastSwap = 0
             state = GameState.STARTED
+            return
         }
-        if (timeSinceLastSwap % 20 == 0) {
-            val starting = Component.literal("Finding start locations: ").append(Component.literal(ticksToMinutesSeconds(timeSinceLastSwap)).withStyle(ChatFormatting.YELLOW))
-            server.allPlayers.forEach { player ->
-                player.displayClientMessage(starting, true)
-            }
+        val endTime = System.nanoTime()
+        timeSearchingForSpawn += (endTime - startTime).nanoseconds
+        val starting = Component.literal("Finding start locations: ")
+            .append(Component.literal(
+                "${timeSearchingForSpawn.inWholeMinutes}:" +
+                        (timeSearchingForSpawn.inWholeSeconds % 60).toString().padStart(2, '0')
+            ).withStyle(ChatFormatting.YELLOW)
+        )
+        server.allPlayers.forEach { player ->
+            player.displayClientMessage(starting, true)
         }
     }
 

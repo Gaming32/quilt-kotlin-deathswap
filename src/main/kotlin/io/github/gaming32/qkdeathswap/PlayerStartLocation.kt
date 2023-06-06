@@ -1,6 +1,7 @@
 package io.github.gaming32.qkdeathswap
 
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
@@ -57,8 +58,10 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
         val blockPos = BlockPos.MutableBlockPos(x, 0, z)
         for (i in topY downTo level.dimensionType().minY) {
             val state = level.getBlockState(blockPos.setY(i - 2))
-            val solid = state.isSolidRender(level, blockPos)
-            if (level.getBlockState(blockPos.setY(i)).isAir && level.getBlockState(blockPos.setY(i - 1)).isAir && !state.isAir && solid) {
+            if (
+                !state.isAir && state.isFaceSturdy(level, blockPos, Direction.UP) &&
+                level.getBlockState(blockPos.setY(i)).isAir && level.getBlockState(blockPos.setY(i - 1)).isAir
+            ) {
                 y = i - 1
                 this.state++
                 return
@@ -73,7 +76,7 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
             .getFirstAvailable(x and 0xf, z and 0xf)
         if (y != level.dimensionType().minY) {
             val blockPos = BlockPos(x, y - 1, z)
-            if (level.getBlockState(blockPos).isSolidRender(level, blockPos)) {
+            if (level.getBlockState(blockPos).isFaceSturdy(level, blockPos, Direction.UP)) {
                 this.state++
                 return
             }
