@@ -10,10 +10,10 @@ enable_debug = false
 	min = 10000
 	max = 20000
 [swap_options]
-	mount = false
+	mount = true
 	health = false
 	hunger = false
-	mob_aggression = false
+	mob_aggression = true
 	fire = false
 	air = false
 	frozen = false
