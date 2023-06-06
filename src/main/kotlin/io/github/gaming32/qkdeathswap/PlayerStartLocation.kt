@@ -5,17 +5,19 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.tags.TagKey
+import net.minecraft.world.level.chunk.ChunkStatus
+import net.minecraft.world.level.levelgen.Heightmap
 import kotlin.random.Random
-import kotlin.random.nextInt
 
 class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
     companion object {
-        const val searchOffset = 32
         val disallowSpawn = TagKey.create(Registries.BIOME, ResourceLocation(MOD_ID, "disallow_spawn"))!!
     }
 
-    enum class FindState {
-        BIOME, Y_LEVEL, READY;
+    enum class FindState(val maxSearchOffset: Int) {
+        BIOME(64),
+        Y_LEVEL(16),
+        READY(-1);
 
         operator fun inc() =
             values().getOrNull(ordinal + 1)
@@ -24,10 +26,6 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
 
     var y = 0
     private var state = FindState.BIOME
-
-    init {
-        biomeSearch()
-    }
 
     fun tick(): Boolean {
         repeat(10) {
@@ -70,16 +68,22 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
     }
 
     private fun normalSearch() {
-        y = (level.getChunk(x shr 4, z shr 4).getTopBlock(x and 0xf, z and 0xf))
+        y = level.getChunk(x shr 4, z shr 4, ChunkStatus.HEIGHTMAPS)
+            .getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE)
+            .getFirstAvailable(x and 0xf, z and 0xf)
         if (y != level.dimensionType().minY) {
-            this.state++
-            return
+            val blockPos = BlockPos(x, y - 1, z)
+            if (level.getBlockState(blockPos).isSolidRender(level, blockPos)) {
+                this.state++
+                return
+            }
         }
         newPos()
     }
 
     private fun newPos() {
-        x = Random.nextInt(x - searchOffset..x + searchOffset)
-        z = Random.nextInt(z - searchOffset..z + searchOffset)
+        val searchOffset = state.maxSearchOffset
+        x = Random.nextInt(x - searchOffset, x + searchOffset + 1)
+        z = Random.nextInt(z - searchOffset, z + searchOffset + 1)
     }
 }

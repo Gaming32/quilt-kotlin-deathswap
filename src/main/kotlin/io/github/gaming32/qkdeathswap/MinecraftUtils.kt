@@ -53,7 +53,7 @@ fun ticksToMinutesSeconds(ticks: Int): String {
     return "${minutes}:${seconds.toString().padStart(2, '0')}"
 }
 
-fun LevelChunk.getTopBlock(x: Int, z: Int): Int {
+fun LevelChunk.getFirstAvailable(x: Int, z: Int): Int {
     return getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE).getFirstAvailable(x, z)
 }
 
