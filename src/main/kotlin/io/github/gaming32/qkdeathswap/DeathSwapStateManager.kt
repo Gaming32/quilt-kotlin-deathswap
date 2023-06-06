@@ -290,11 +290,12 @@ object DeathSwapStateManager {
                             true
                         )
                     )
+                    val spawnPos = loc.getPos()
                     entity.teleportTo(
                         loc.level,
-                        loc.x.toDouble(),
-                        loc.y.toDouble(),
-                        loc.z.toDouble(),
+                        spawnPos.x.toDouble(),
+                        spawnPos.y.toDouble(),
+                        spawnPos.z.toDouble(),
                         0f, 0f
                     )
 
@@ -309,6 +310,7 @@ object DeathSwapStateManager {
             return
         }
         val endTime = System.nanoTime()
+        // TODO: Max time
         timeSearchingForSpawn += (endTime - startTime).nanoseconds
         val starting = Component.literal("Finding start locations: ")
             .append(Component.literal(

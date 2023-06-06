@@ -301,13 +301,16 @@ object DeathSwapMod : ModInitializer {
                             if (holder != null) {
                                 val loc = holder.startLocation
                                 if (holder.startLocation.level != destination) {
-                                    val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
+                                    var spawnPos = loc.getPos()
+                                    val newLoc = PlayerStartLocation(destination, spawnPos.x, spawnPos.z)
+                                    // TODO: Max time
                                     while (!loc.tick()) {}
+                                    spawnPos = newLoc.getPos()
                                     player.teleportTo(
                                         newLoc.level,
-                                        newLoc.x.toDouble(),
-                                        newLoc.y.toDouble(),
-                                        newLoc.z.toDouble(),
+                                        spawnPos.x.toDouble(),
+                                        spawnPos.y.toDouble(),
+                                        spawnPos.z.toDouble(),
                                         0f, 0f
                                     )
                                 }

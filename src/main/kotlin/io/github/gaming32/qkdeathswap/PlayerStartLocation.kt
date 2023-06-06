@@ -10,7 +10,7 @@ import net.minecraft.world.level.chunk.ChunkStatus
 import net.minecraft.world.level.levelgen.Heightmap
 import kotlin.random.Random
 
-class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
+class PlayerStartLocation(val level: ServerLevel, private var x: Int, private var z: Int) {
     companion object {
         val disallowSpawn = TagKey.create(Registries.BIOME, ResourceLocation(MOD_ID, "disallow_spawn"))!!
     }
@@ -25,8 +25,9 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
                 ?: throw IllegalArgumentException("Cannot increment FindState.$this")
     }
 
-    var y = 0
+    private var y = 0
     private var state = FindState.BIOME
+    private lateinit var pos: BlockPos
 
     fun tick(): Boolean {
         repeat(10) {
@@ -42,6 +43,20 @@ class PlayerStartLocation(val level: ServerLevel, var x: Int, var z: Int) {
             }
         }
         return false
+    }
+
+    fun forceFinalize() {
+        state = FindState.READY
+    }
+
+    fun getPos(): BlockPos {
+        if (state != FindState.READY) {
+            throw IllegalStateException("Player start position accessed before finalized!")
+        }
+        if (!this::pos.isInitialized) {
+            pos = BlockPos(x, y, z)
+        }
+        return pos
     }
 
     private fun biomeSearch() {
