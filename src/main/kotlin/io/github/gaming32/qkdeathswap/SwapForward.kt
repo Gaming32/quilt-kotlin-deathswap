@@ -128,15 +128,21 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
             }
         }
 
-        thisPlayer.displayClientMessage(
-            Component.literal("You were teleported to ").withStyle(ChatFormatting.GRAY)
-                .append(nextPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)),
-            false
-        )
         if (moreThanTwoPlayers) {
+            thisPlayer.displayClientMessage(
+                Component.literal("You were teleported to ").withStyle(ChatFormatting.GRAY)
+                    .append(nextPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)),
+                false
+            )
             nextPlayer.displayClientMessage(
                 thisPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)
                     .append(Component.literal(" teleported to you").withStyle(ChatFormatting.GRAY)),
+                false
+            )
+        } else {
+            thisPlayer.displayClientMessage(
+                Component.literal("You swapped with ").withStyle(ChatFormatting.GRAY)
+                    .append(nextPlayer.displayName.copy().withStyle(ChatFormatting.GREEN)),
                 false
             )
         }
