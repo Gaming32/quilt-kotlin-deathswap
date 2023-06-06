@@ -33,7 +33,7 @@ object Presets {
             }
             return true
         } else {
-            val internalPath = "/assets/${MOD_ID}/presets/${preset}"
+            val internalPath = "/data/${MOD_ID}/presets/${preset}"
             val internalFile = "$internalPath/deathswap.toml"
             Presets::class.java.getResourceAsStream(internalFile)?.use { configStream ->
                 val kitPreset = "$internalPath/default_kit.dat"
@@ -60,7 +60,7 @@ object Presets {
         return if (configFile.exists()) {
             Files.newInputStream(configFile)
         } else {
-            Presets::class.java.getResourceAsStream("/assets/${MOD_ID}/presets/${preset}/deathswap.toml")
+            Presets::class.java.getResourceAsStream("/data/${MOD_ID}/presets/${preset}/deathswap.toml")
         }
     }
 
@@ -69,7 +69,7 @@ object Presets {
         return if (kitPreset.exists()) {
             Files.newInputStream(kitPreset)
         } else {
-            Presets::class.java.getResourceAsStream("/assets/${MOD_ID}/presets/${preset}/default_kit.dat")
+            Presets::class.java.getResourceAsStream("/data/${MOD_ID}/presets/${preset}/default_kit.dat")
         }
     }
 

@@ -299,11 +299,11 @@ object DeathSwapMod : ModInitializer {
                             val holder = DeathSwapStateManager.livingPlayers[player.uuid]
                             if (holder != null) {
                                 val loc = holder.startLocation
-                                if (holder.startLocation.world != destination) {
+                                if (holder.startLocation.level != destination) {
                                     val newLoc = PlayerStartLocation(destination, loc.x, loc.z)
                                     while (!loc.tick()) {}
                                     player.teleportTo(
-                                        newLoc.world,
+                                        newLoc.level,
                                         newLoc.x.toDouble(),
                                         newLoc.y.toDouble(),
                                         newLoc.z.toDouble(),

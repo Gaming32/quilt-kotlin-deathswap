@@ -267,7 +267,7 @@ object DeathSwapStateManager {
                         )
                     )
                     entity.teleportTo(
-                        loc.world,
+                        loc.level,
                         loc.x.toDouble(),
                         loc.y.toDouble(),
                         loc.z.toDouble(),
