@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.NeutralMob
 import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.monster.warden.WardenSpawnTracker
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 
@@ -34,7 +35,7 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
         null
     }
 
-    private val wardenTracker = nextPlayer.wardenSpawnTracker.get()
+    private val wardenTracker = (nextPlayer.wardenSpawnTracker.get() as PublicCloneable).clone() as WardenSpawnTracker
 
     private val air = nextPlayer.airSupply
 
