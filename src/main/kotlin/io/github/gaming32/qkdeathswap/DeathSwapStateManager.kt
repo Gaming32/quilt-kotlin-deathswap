@@ -90,13 +90,7 @@ object DeathSwapStateManager {
                 RuntimeWorldConfig()
                     .setSeed(WorldOptions.randomSeed())
                     .setShouldTickTime(true)
-                    .setDimensionType(
-                        getDimensionType(
-                            server,
-                            DeathSwapConfig.fantasyDimensionType.value
-                                ?: throw IllegalArgumentException("Dimension type of null is not supported!")
-                        ) ?: throw IllegalStateException("Dimension ${DeathSwapConfig.fantasyDimensionType.value} not found!")
-                    )
+                    .setDimensionType(levelToUse.dimensionTypeRegistration())
                     .setDifficulty(DeathSwapConfig.fantasyDifficulty.value)
                     .setGenerator(levelToUse.chunkSource.generator)
             ).also { levelToUse = it.asWorld() }

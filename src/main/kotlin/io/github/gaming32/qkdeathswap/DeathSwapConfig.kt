@@ -6,9 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.DimensionArgument
-import net.minecraft.commands.arguments.ResourceLocationArgument
 import net.minecraft.commands.arguments.TimeArgument
-import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
@@ -18,7 +16,6 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.Difficulty
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
@@ -277,25 +274,6 @@ open class DeathSwapConfig(
         false,
         BoolArgumentType.bool(),
         "Whether to enable creating new worlds for Deathswap"
-    )
-
-    val fantasyDimensionType = fantasyGroup.setting(
-        "dimension_type",
-        BuiltinDimensionTypes.OVERWORLD.location(),
-        ResourceLocationArgument.id(),
-        "The dimension type to use for Fantasy worlds made for Deathswap (e.g. overworld, nether)",
-        brigadierSuggestor = { context, builder ->
-            context.source.suggestRegistryElements(
-                Registries.DIMENSION_TYPE,
-                SharedSuggestionProvider.ElementSuggestionType.ELEMENTS,
-                builder, context
-            )
-        },
-        serializer = { it.toString() },
-        deserializer = { (it as? String)?.let(::ResourceLocation) },
-        brigadierFilter = { source, value ->
-            source.registryAccess().registryOrThrow(Registries.DIMENSION_TYPE).containsKey(value)
-        }
     )
 
     val fantasyDifficulty = fantasyGroup.setting<Difficulty, String>(
