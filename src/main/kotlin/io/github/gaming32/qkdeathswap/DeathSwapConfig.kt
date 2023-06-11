@@ -121,7 +121,8 @@ open class DeathSwapConfig(
             maxSpreadDistance.value = range.last
         }
 
-    val dimension = setting("dimension",
+    val dimension = setting(
+        "dimension",
         Level.OVERWORLD.location(),
         DimensionArgument.dimension(),
         "The dimension players are teleported to",
@@ -159,7 +160,6 @@ open class DeathSwapConfig(
         true,
         BoolArgumentType.bool()
     )
-
 
     val swapHealth = swapOptionsGroup.setting(
         "health",

@@ -296,38 +296,40 @@ object DeathSwapMod : ModInitializer {
             }
 
             AFTER_PLAYER_WORLD_CHANGE.register { player, origin, destination ->
-                if (DeathSwapStateManager.state >= GameState.STARTED) {
-                    if (origin.dimensionTypeId() == BuiltinDimensionTypes.END) {
-                        if (DeathSwapStateManager.livingPlayers.containsKey(player.uuid)) {
-                            // Teleport player, so they aren't at spawn in the overworld
-                            val holder = DeathSwapStateManager.livingPlayers[player.uuid]
-                            if (holder != null) {
-                                val loc = holder.startLocation
-                                if (holder.startLocation.level != destination) {
-                                    var spawnPos = loc.getPos()
-                                    val newLoc = PlayerStartLocation(destination, spawnPos.x, spawnPos.z)
-                                    val startTime = System.currentTimeMillis()
-                                    while (!newLoc.tick()) {
-                                        val searchTime = System.currentTimeMillis() - startTime
-                                        if (searchTime > DeathSwapConfig.maxStartFindTime.value * 50) {
-                                            player.sendSystemMessage(Component.literal(
-                                                "Took too long to find a respawn location! Going with what we've got."
-                                            ).withStyle(ChatFormatting.RED))
-                                            newLoc.forceFinalize()
-                                        }
-                                    }
-                                    spawnPos = newLoc.getPos()
-                                    player.teleportTo(
-                                        newLoc.level,
-                                        spawnPos.x.toDouble(),
-                                        spawnPos.y.toDouble(),
-                                        spawnPos.z.toDouble(),
-                                        0f, 0f
+                if (
+                    DeathSwapStateManager.state >= GameState.STARTED &&
+                    origin.dimensionTypeId() == BuiltinDimensionTypes.END &&
+                    DeathSwapStateManager.livingPlayers.containsKey(player.uuid)
+                ) {
+                    // Teleport player, so they aren't at spawn in the overworld
+                    val holder = DeathSwapStateManager.livingPlayers[player.uuid]
+                    if (holder != null) {
+                        val loc = holder.startLocation
+                        if (holder.startLocation.level != destination) {
+                            var spawnPos = loc.getPos()
+                            val newLoc = PlayerStartLocation(destination, spawnPos.x, spawnPos.z)
+                            val startTime = System.currentTimeMillis()
+                            while (!newLoc.tick()) {
+                                val searchTime = System.currentTimeMillis() - startTime
+                                if (searchTime > DeathSwapConfig.maxStartFindTime.value * 50) {
+                                    player.sendSystemMessage(
+                                        Component.literal(
+                                        "Took too long to find a respawn location! Going with what we've got."
+                                    ).withStyle(ChatFormatting.RED)
                                     )
+                                    newLoc.forceFinalize()
                                 }
-                                // else is handled by the setspawn code on itemcount's branch
                             }
+                            spawnPos = newLoc.getPos()
+                            player.teleportTo(
+                                newLoc.level,
+                                spawnPos.x.toDouble(),
+                                spawnPos.y.toDouble(),
+                                spawnPos.z.toDouble(),
+                                0f, 0f
+                            )
                         }
+                        // else is handled by the setspawn code on itemcount's branch
                     }
                 }
             }
