@@ -20,8 +20,12 @@ import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.entity.EntityTypeTest
+import net.minecraft.world.level.levelgen.WorldOptions
 import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.playersTracking
+import xyz.nucleoid.fantasy.Fantasy
+import xyz.nucleoid.fantasy.RuntimeWorldConfig
+import xyz.nucleoid.fantasy.RuntimeWorldHandle
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.math.PI
@@ -69,9 +73,34 @@ object DeathSwapStateManager {
         private set
     private val swapTargets = mutableSetOf<SwapForward>()
 
+    private var fantasyWorld: RuntimeWorldHandle? = null
+
     fun begin(server: MinecraftServer) {
         if (state > GameState.NOT_STARTED) {
             throw CommandRuntimeException(Component.literal("Game already begun"))
+        }
+
+        var levelToUse = server.getLevel(
+            ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)
+        ) ?: server.overworld()
+
+        fantasyWorld?.delete()
+        if (DeathSwapConfig.fantasyEnabled.value) {
+            fantasyWorld = Fantasy.get(server).openTemporaryWorld(
+                RuntimeWorldConfig()
+                    .setSeed(WorldOptions.randomSeed())
+                    .setShouldTickTime(true)
+                    .setDimensionType(
+                        getDimensionType(
+                            server,
+                            DeathSwapConfig.fantasyDimensionType.value
+                                ?: throw IllegalArgumentException("Dimension type of null is not supported!")
+                        ) ?: throw IllegalStateException("Dimension ${DeathSwapConfig.fantasyDimensionType.value} not found!")
+                    )
+                    .setDifficulty(DeathSwapConfig.fantasyDifficulty.value)
+                    .setGenerator(levelToUse.chunkSource.generator)
+            ).also { levelToUse = it.asWorld() }
+            DeathSwapMod.swapMode.dimensionsCreated(server)
         }
 
         spawnSearchStart = System.currentTimeMillis()
@@ -84,12 +113,7 @@ object DeathSwapStateManager {
             val distance = Random.nextDouble(DeathSwapConfig.minSpreadDistance.value.toDouble(), DeathSwapConfig.maxSpreadDistance.value.toDouble())
             val x = (distance * cos(playerAngle)).toInt()
             val z = (distance * sin(playerAngle)).toInt()
-            livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(
-                server.getLevel(
-                    ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)
-                ) ?: server.overworld(),
-                x, z
-            ))
+            livingPlayers[player.uuid] = PlayerHolder(player, PlayerStartLocation(levelToUse, x, z))
             playerAngle += playerAngleChange
 //            player.setGameMode(GameType.SPECTATOR)
         }
@@ -162,6 +186,9 @@ object DeathSwapStateManager {
             player.teleport(destWorld.spawnLocation.copy(pitch = 0f))
             resetPlayer(player)
         }
+
+        fantasyWorld?.delete()
+        fantasyWorld = null
     }
 
     fun resetPlayer(
@@ -422,6 +449,12 @@ enum class DeathSwapGameMode(val allowDeath: Boolean, val limitedSwapCount: Bool
     NORMAL(false, false),
     ITEM_COUNT(true, true),
     ;
+
+    companion object {
+        val codec = StringRepresentable.fromEnum(::values)!!
+
+        fun byName(name: String) = codec.byName(name)
+    }
 
     private val id = name.lowercase()
     private val presentableName = id.replaceFirstChar { it.uppercaseChar() }.replace('_', ' ')

@@ -1,6 +1,9 @@
 package io.github.gaming32.qkdeathswap
 
+import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
@@ -9,6 +12,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.level.levelgen.Heightmap
+import kotlin.jvm.optionals.getOrNull
 
 fun MinecraftServer.broadcast(message: String) = broadcast(Component.literal(message))
 
@@ -62,3 +66,9 @@ fun Container.copyFrom(other: Container) {
         setItem(i, other.getItem(i).copy())
     }
 }
+
+fun getDimensionType(server: MinecraftServer, id: ResourceLocation) = server
+    .registryAccess()
+    .registryOrThrow(Registries.DIMENSION_TYPE)
+    .getHolder(ResourceKey.create(Registries.DIMENSION_TYPE, id))
+    .getOrNull()

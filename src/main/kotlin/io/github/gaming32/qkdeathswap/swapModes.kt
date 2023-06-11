@@ -5,6 +5,9 @@ import net.minecraft.server.level.ServerPlayer
 import qouteall.imm_ptl.core.api.PortalAPI
 import qouteall.imm_ptl.core.chunk_loading.ChunkLoader
 import qouteall.imm_ptl.core.chunk_loading.DimensionalChunkPos
+import qouteall.q_misc_util.MiscNetworking
+import qouteall.q_misc_util.api.DimensionAPI
+import qouteall.q_misc_util.dimension.DimensionIdManagement
 
 interface SwapMode {
     val preSwapHappensAtPrepare: Boolean
@@ -14,6 +17,8 @@ interface SwapMode {
     fun beforeSwap(server: MinecraftServer) = Unit
 
     fun endMatch(server: MinecraftServer) = Unit
+
+    fun dimensionsCreated(server: MinecraftServer) = Unit
 
     object Simple : SwapMode {
         override val preSwapHappensAtPrepare get() = true
@@ -46,6 +51,13 @@ interface SwapMode {
         private fun clearChunkLoaders() {
             chunkLoaders.forEach(PortalAPI::removeChunkLoaderForPlayer)
             chunkLoaders.clear()
+        }
+
+        override fun dimensionsCreated(server: MinecraftServer) {
+            DimensionIdManagement.updateAndSaveServerDimIdRecord()
+            val syncPacket = MiscNetworking.createDimSyncPacket()
+            server.playerList.players.forEach { it.connection.send(syncPacket) }
+            DimensionAPI.serverDimensionDynamicUpdateEvent.invoker().run(server.levelKeys())
         }
     }
 }

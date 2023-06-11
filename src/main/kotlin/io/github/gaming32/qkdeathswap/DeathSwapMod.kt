@@ -26,11 +26,8 @@ import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import org.quiltmc.loader.api.ModContainer
 import org.quiltmc.loader.api.QuiltLoader
+import org.quiltmc.qkl.library.brigadier.*
 import org.quiltmc.qkl.library.brigadier.argument.*
-import org.quiltmc.qkl.library.brigadier.execute
-import org.quiltmc.qkl.library.brigadier.optional
-import org.quiltmc.qkl.library.brigadier.register
-import org.quiltmc.qkl.library.brigadier.required
 import org.quiltmc.qkl.library.commands.onCommandRegistration
 import org.quiltmc.qkl.library.lifecycle.onServerTickEnd
 import org.quiltmc.qkl.library.networking.allPlayers
@@ -76,16 +73,20 @@ object DeathSwapMod : ModInitializer {
                 register("deathswap") {
                     requires { it.hasPermission(2) }
                     required(literal("start")) {
-                        execute {
+                        executeWithResult {
                             try {
                                 if (!QuiltLoader.isDevelopmentEnvironment() && source.server.allPlayers.size < 2) {
                                     throw CommandRuntimeException(Component.literal("Cannot start a DeathSwap with less than 2 players."))
                                 }
                                 DeathSwapStateManager.begin(source.server)
                                 source.server.broadcast("Deathswap started!")
+                                CommandResult.success()
                             } catch (e: Exception) {
                                 LOGGER.error("Error starting DeathSwap", e)
-                                throw e
+                                if (e is CommandRuntimeException) {
+                                    throw e
+                                }
+                                CommandResult.failure(Component.literal("Failed to start deathswap: ${e.message}"))
                             }
                         }
                     }
@@ -305,7 +306,7 @@ object DeathSwapMod : ModInitializer {
                     val holder = DeathSwapStateManager.livingPlayers[player.uuid]
                     if (holder != null) {
                         val loc = holder.startLocation
-                        if (holder.startLocation.level != destination) {
+                        if (holder.startLocation.level == origin) {
                             var spawnPos = loc.getPos()
                             val newLoc = PlayerStartLocation(destination, spawnPos.x, spawnPos.z)
                             val startTime = System.currentTimeMillis()
@@ -314,8 +315,8 @@ object DeathSwapMod : ModInitializer {
                                 if (searchTime > DeathSwapConfig.maxStartFindTime.value * 50) {
                                     player.sendSystemMessage(
                                         Component.literal(
-                                        "Took too long to find a respawn location! Going with what we've got."
-                                    ).withStyle(ChatFormatting.RED)
+                                            "Took too long to find a respawn location! Going with what we've got."
+                                        ).withStyle(ChatFormatting.RED)
                                     )
                                     newLoc.forceFinalize()
                                 }

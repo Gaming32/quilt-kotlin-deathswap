@@ -6,15 +6,19 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.DimensionArgument
+import net.minecraft.commands.arguments.ResourceLocationArgument
 import net.minecraft.commands.arguments.TimeArgument
+import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.Tag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.Difficulty
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.level.Level
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import org.quiltmc.loader.api.QuiltLoader
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.core.CommentedConfig
 import org.quiltmc.loader.impl.lib.electronwill.nightconfig.toml.TomlFormat
@@ -228,16 +232,14 @@ open class DeathSwapConfig(
         "game_mode",
         DeathSwapGameMode.NORMAL,
         StringArgumentType.word(),
-        brigadierDeserializer = { input ->
-            DeathSwapGameMode.values().firstOrNull { it.serializedName == input } ?: throw INVALID_ENUM_EXCEPTION.create(input)
+        brigadierDeserializer = {
+            (it as? String)?.let(DeathSwapGameMode::byName) ?: throw INVALID_ENUM_EXCEPTION.create(it)
         },
         brigadierSuggestor = { _, builder ->
             SharedSuggestionProvider.suggest(Arrays.stream(DeathSwapGameMode.values()).map(DeathSwapGameMode::getSerializedName), builder)
         },
         serializer = { it.serializedName },
-        deserializer = { input ->
-            DeathSwapGameMode.values().firstOrNull { it.serializedName == input } ?: DeathSwapGameMode.NORMAL
-        }
+        deserializer = { (it as? String)?.let(DeathSwapGameMode::byName) ?: DeathSwapGameMode.NORMAL }
     )
 
     val craftingCountsTowardsItemCount = setting(
@@ -263,6 +265,52 @@ open class DeathSwapConfig(
         10,
         IntegerArgumentType.integer(1),
         "The number of iterations per player per tick to run the start location finder\nDefault 10"
+    )
+
+    val fantasyGroup = group(
+        "fantasy",
+        "Options for working with Fantasy, the mod that allows temporary worlds to be created for each deathswap"
+    )
+
+    val fantasyEnabled = fantasyGroup.setting(
+        "enabled",
+        false,
+        BoolArgumentType.bool(),
+        "Whether to enable creating new worlds for Deathswap"
+    )
+
+    val fantasyDimensionType = fantasyGroup.setting(
+        "dimension_type",
+        BuiltinDimensionTypes.OVERWORLD.location(),
+        ResourceLocationArgument.id(),
+        "The dimension type to use for Fantasy worlds made for Deathswap (e.g. overworld, nether)",
+        brigadierSuggestor = { context, builder ->
+            context.source.suggestRegistryElements(
+                Registries.DIMENSION_TYPE,
+                SharedSuggestionProvider.ElementSuggestionType.ELEMENTS,
+                builder, context
+            )
+        },
+        serializer = { it.toString() },
+        deserializer = { (it as? String)?.let(::ResourceLocation) },
+        brigadierFilter = { source, value ->
+            source.registryAccess().registryOrThrow(Registries.DIMENSION_TYPE).containsKey(value)
+        }
+    )
+
+    val fantasyDifficulty = fantasyGroup.setting<Difficulty, String>(
+        "difficulty",
+        Difficulty.NORMAL,
+        StringArgumentType.word(),
+        "The difficulty to use for Fantasy worlds made for Deathswap",
+        brigadierDeserializer = {
+            (it as? String)?.let(Difficulty::byName) ?: throw INVALID_ENUM_EXCEPTION.create(it)
+        },
+        brigadierSuggestor = { _, builder ->
+            SharedSuggestionProvider.suggest(Arrays.stream(Difficulty.values()).map(Difficulty::getSerializedName), builder)
+        },
+        serializer = { it.serializedName },
+        deserializer = { (it as? String)?.let(Difficulty::byName) ?: Difficulty.NORMAL }
     )
 
     var defaultKit: Inventory = loadKit()

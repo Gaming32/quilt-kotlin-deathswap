@@ -15,6 +15,8 @@ repositories {
         url = uri("https://maven.parchmentmc.org")
     }
 
+    maven("https://maven.nucleoid.xyz")
+
     maven("https://jitpack.io")
 }
 
@@ -31,9 +33,13 @@ dependencies {
     modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.0.2+kt.1.8.20+flk.1.9.3")
 
     modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:imm_ptl_core:v2.3.1-1.19") {
-        exclude(group = "net.fabricmc.fabric-api")
         isTransitive = false
     }
+    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:q_misc_util:v2.3.1-1.19") {
+        isTransitive = false
+    }
+
+    include(modImplementation("xyz.nucleoid:fantasy:0.4.10+1.19.4")!!)
 }
 
 loom {
