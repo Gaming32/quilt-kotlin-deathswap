@@ -258,6 +258,13 @@ open class DeathSwapConfig(
         IntegerArgumentType.integer(1)
     )
 
+    val mainThreadWeight = setting(
+        "main_thread_weight",
+        10,
+        IntegerArgumentType.integer(1),
+        "The number of iterations per player per tick to run the start location finder\nDefault 10"
+    )
+
     var defaultKit: Inventory = loadKit()
 
     private fun loadKit() = Inventory(null).apply {

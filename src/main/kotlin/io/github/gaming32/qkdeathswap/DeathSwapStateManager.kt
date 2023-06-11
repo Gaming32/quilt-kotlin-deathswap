@@ -270,7 +270,14 @@ object DeathSwapStateManager {
 
     private fun tickStartingPositions(server: MinecraftServer) {
         DeathSwapMod.LOGGER.info("Finding starting positions tick #{}", ++timeSinceLastSwap)
-        if (livingPlayers.values.all { it.startLocation.tick() }) {
+        var success = false
+        for (i in 1..DeathSwapConfig.mainThreadWeight.value) {
+            if (livingPlayers.values.all { it.startLocation.tick() }) {
+                success = true
+                break
+            }
+        }
+        if (success) {
             livingPlayers.forEach { entry ->
                 val loc = entry.value.startLocation
                 val entity = entry.value.player

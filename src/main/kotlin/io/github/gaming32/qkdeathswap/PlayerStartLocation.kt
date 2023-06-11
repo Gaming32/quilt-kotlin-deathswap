@@ -30,17 +30,15 @@ class PlayerStartLocation(val level: ServerLevel, private var x: Int, private va
     private lateinit var pos: BlockPos
 
     fun tick(): Boolean {
-        repeat(10) {
-            when (state) {
-                FindState.BIOME -> biomeSearch()
-                FindState.Y_LEVEL ->
-                    if (level.dimensionType().hasCeiling) {
-                        ceilingSearch()
-                    } else {
-                        normalSearch()
-                    }
-                FindState.READY -> return true
-            }
+        when (state) {
+            FindState.BIOME -> biomeSearch()
+            FindState.Y_LEVEL ->
+                if (level.dimensionType().hasCeiling) {
+                    ceilingSearch()
+                } else {
+                    normalSearch()
+                }
+            FindState.READY -> return true
         }
         return false
     }
