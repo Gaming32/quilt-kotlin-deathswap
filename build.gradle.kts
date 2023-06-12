@@ -40,6 +40,8 @@ dependencies {
     }
 
     include(modImplementation("xyz.nucleoid:fantasy:0.4.10+1.19.4")!!)
+
+    include(implementation(annotationProcessor("com.github.LlamaLad7:MixinExtras:0.2.0-beta.8")!!)!!)
 }
 
 loom {

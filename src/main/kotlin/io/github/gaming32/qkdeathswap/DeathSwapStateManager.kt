@@ -73,7 +73,8 @@ object DeathSwapStateManager {
         private set
     private val swapTargets = mutableSetOf<SwapForward>()
 
-    private var fantasyWorld: RuntimeWorldHandle? = null
+    val isCreatingFantasyWorld = ThreadLocal.withInitial { false }!!
+    var fantasyWorld: RuntimeWorldHandle? = null
 
     fun begin(server: MinecraftServer) {
         if (state > GameState.NOT_STARTED) {
@@ -86,6 +87,7 @@ object DeathSwapStateManager {
 
         fantasyWorld?.delete()
         if (DeathSwapConfig.fantasyEnabled.value) {
+            isCreatingFantasyWorld.set(true)
             fantasyWorld = Fantasy.get(server).openTemporaryWorld(
                 RuntimeWorldConfig()
                     .setSeed(WorldOptions.randomSeed())
@@ -94,6 +96,7 @@ object DeathSwapStateManager {
                     .setDifficulty(DeathSwapConfig.fantasyDifficulty.value)
                     .setGenerator(levelToUse.chunkSource.generator)
             ).also { levelToUse = it.asWorld() }
+            isCreatingFantasyWorld.set(false)
             DeathSwapMod.swapMode.dimensionsCreated(server)
         }
 
