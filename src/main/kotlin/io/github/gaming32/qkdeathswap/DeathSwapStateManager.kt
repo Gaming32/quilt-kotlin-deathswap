@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
@@ -19,6 +20,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import net.minecraft.world.level.entity.EntityTypeTest
 import net.minecraft.world.level.levelgen.WorldOptions
 import org.quiltmc.qkl.library.networking.allPlayers
@@ -98,6 +100,10 @@ object DeathSwapStateManager {
             ).also { levelToUse = it.asWorld() }
             isCreatingFantasyWorld.set(false)
             DeathSwapMod.swapMode.dimensionsCreated(server)
+        }
+
+        if (levelToUse.dimensionTypeRegistration().`is`(BuiltinDimensionTypes.END)) {
+            ServerLevel.makeObsidianPlatform(levelToUse)
         }
 
         spawnSearchStart = System.currentTimeMillis()
