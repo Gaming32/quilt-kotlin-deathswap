@@ -6,6 +6,7 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
@@ -25,8 +26,6 @@ import net.minecraft.world.level.entity.EntityTypeTest
 import net.minecraft.world.level.levelgen.WorldOptions
 import org.quiltmc.qkl.library.networking.allPlayers
 import org.quiltmc.qkl.library.networking.playersTracking
-import xyz.nucleoid.fantasy.Fantasy
-import xyz.nucleoid.fantasy.RuntimeWorldConfig
 import xyz.nucleoid.fantasy.RuntimeWorldHandle
 import java.text.DecimalFormat
 import java.util.*
@@ -76,7 +75,7 @@ object DeathSwapStateManager {
     private val swapTargets = mutableSetOf<SwapForward>()
 
     val isCreatingFantasyWorld = ThreadLocal.withInitial { false }!!
-    var fantasyWorld: RuntimeWorldHandle? = null
+    val fantasyWorlds = mutableMapOf<ResourceLocation, RuntimeWorldHandle>()
 
     fun begin(server: MinecraftServer) {
         if (state > GameState.NOT_STARTED) {
@@ -87,19 +86,10 @@ object DeathSwapStateManager {
             ResourceKey.create(Registries.DIMENSION, DeathSwapConfig.dimension.value!!)
         ) ?: server.overworld()
 
-        fantasyWorld?.delete()
+        fantasyWorlds.values.forEach(RuntimeWorldHandle::delete)
+        fantasyWorlds.clear()
         if (DeathSwapConfig.fantasyEnabled.value) {
-            isCreatingFantasyWorld.set(true)
-            fantasyWorld = Fantasy.get(server).openTemporaryWorld(
-                RuntimeWorldConfig()
-                    .setSeed(WorldOptions.randomSeed())
-                    .setShouldTickTime(true)
-                    .setDimensionType(levelToUse.dimensionTypeRegistration())
-                    .setDifficulty(DeathSwapConfig.fantasyDifficulty.value)
-                    .setGenerator(levelToUse.chunkSource.generator)
-            ).also { levelToUse = it.asWorld() }
-            isCreatingFantasyWorld.set(false)
-            DeathSwapMod.swapMode.dimensionsCreated(server)
+            levelToUse = server.createFantasyWorld(levelToUse, WorldOptions.randomSeed()).asWorld()
         }
 
         if (levelToUse.dimensionTypeRegistration().`is`(BuiltinDimensionTypes.END)) {
@@ -190,8 +180,8 @@ object DeathSwapStateManager {
             resetPlayer(player)
         }
 
-        fantasyWorld?.delete()
-        fantasyWorld = null
+        fantasyWorlds.values.forEach(RuntimeWorldHandle::delete)
+        fantasyWorlds.clear()
     }
 
     fun resetPlayer(
@@ -446,6 +436,11 @@ object DeathSwapStateManager {
             holder.itemsCrafted += stack.item
         }
     }
+
+    fun isFantasyWorld(level: ServerLevel) = fantasyWorlds.values.any { level == it.asWorld() }
+
+    fun findOriginalLevel(level: ServerLevel) =
+        fantasyWorlds.entries.firstOrNull { it.value.asWorld() == level }?.key
 }
 
 enum class DeathSwapGameMode(val allowDeath: Boolean, val limitedSwapCount: Boolean) : StringRepresentable {

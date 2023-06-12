@@ -28,7 +28,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import xyz.nucleoid.fantasy.RuntimeWorldHandle;
 
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -71,10 +70,6 @@ public abstract class MixinServerLevel extends Level {
         )
     )
     private boolean dontOverwriteGlobalDragonFight(WorldData instance, CompoundTag nbt) {
-        final RuntimeWorldHandle handle = DeathSwapStateManager.INSTANCE.getFantasyWorld();
-        if (handle == null) {
-            return true;
-        }
-        return handle.asWorld() != (Object)this;
+        return !DeathSwapStateManager.INSTANCE.isFantasyWorld((ServerLevel)(Object)this);
     }
 }

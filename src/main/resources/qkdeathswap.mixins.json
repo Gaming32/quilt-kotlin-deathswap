@@ -4,16 +4,21 @@
   "package": "io.github.gaming32.qkdeathswap.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "ChangeDimensionMixin",
     "EntityAccessor",
+    "MixinBaseFireBlock",
+    "MixinEndPortalBlock",
+    "MixinEntity",
     "MixinInventoryChangeTrigger",
     "MixinLivingEntity",
     "MixinMob",
     "MixinResultSlot",
     "MixinServerLevel",
+    "MixinServerPlayer",
     "MixinWardenSpawnTracker",
     "WardenSpawnTrackerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
-	}
+  }
 }

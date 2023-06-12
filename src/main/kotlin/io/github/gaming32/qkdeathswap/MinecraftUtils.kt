@@ -12,6 +12,9 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.level.levelgen.Heightmap
+import xyz.nucleoid.fantasy.Fantasy
+import xyz.nucleoid.fantasy.RuntimeWorldConfig
+import xyz.nucleoid.fantasy.RuntimeWorldHandle
 import kotlin.jvm.optionals.getOrNull
 
 fun MinecraftServer.broadcast(message: String) = broadcast(Component.literal(message))
@@ -72,3 +75,22 @@ fun getDimensionType(server: MinecraftServer, id: ResourceLocation) = server
     .registryOrThrow(Registries.DIMENSION_TYPE)
     .getHolder(ResourceKey.create(Registries.DIMENSION_TYPE, id))
     .getOrNull()
+
+fun MinecraftServer.createFantasyWorld(fromLevel: ServerLevel, seed: Long): RuntimeWorldHandle {
+    DeathSwapStateManager.isCreatingFantasyWorld.set(true)
+    val newWorld = try {
+        Fantasy.get(this).openTemporaryWorld(
+            RuntimeWorldConfig()
+                .setSeed(seed)
+                .setShouldTickTime(true)
+                .setDimensionType(fromLevel.dimensionTypeRegistration())
+                .setDifficulty(DeathSwapConfig.fantasyDifficulty.value)
+                .setGenerator(fromLevel.chunkSource.generator)
+        )
+    } finally {
+        DeathSwapStateManager.isCreatingFantasyWorld.set(false)
+    }
+    DeathSwapStateManager.fantasyWorlds.put(fromLevel.dimension().location(), newWorld)?.delete()
+    DeathSwapMod.swapMode.dimensionsCreated(this)
+    return newWorld
+}
