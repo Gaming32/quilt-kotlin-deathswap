@@ -84,7 +84,7 @@ class PlayerStartLocation(val level: ServerLevel, private var x: Int, private va
     }
 
     private fun normalSearch() {
-        y = level.getChunk(x shr 4, z shr 4, ChunkStatus.HEIGHTMAPS)
+        y = level.getChunk(x shr 4, z shr 4, ChunkStatus.FEATURES)
             .getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE)
             .getFirstAvailable(x and 0xf, z and 0xf)
         if (y != level.dimensionType().minY) {

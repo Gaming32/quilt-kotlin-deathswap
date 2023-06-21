@@ -1,6 +1,6 @@
 plugins {
     id("org.quiltmc.loom") version "1.1.+"
-    kotlin("jvm") version "1.8.21"
+    kotlin("jvm") version "1.8.22"
     java
 }
 
@@ -30,16 +30,16 @@ dependencies {
     modImplementation(libs.quilt.loader)
 
     modImplementation(libs.quilted.fabric.api)
-    modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.0.2+kt.1.8.20+flk.1.9.3")
+    modImplementation("org.quiltmc.quilt-kotlin-libraries:quilt-kotlin-libraries:2.1.0+kt.1.8.22+flk.1.9.4")
 
-    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:imm_ptl_core:v2.3.1-1.19") {
+    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:imm_ptl_core:v3.1.0-mc1.20.1") {
         isTransitive = false
     }
-    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:q_misc_util:v2.3.1-1.19") {
+    modCompileOnly("com.github.iPortalTeam.ImmersivePortalsMod:q_misc_util:v3.1.0-mc1.20.1") {
         isTransitive = false
     }
 
-    include(modImplementation("xyz.nucleoid:fantasy:0.4.10+1.19.4")!!)
+    include(modImplementation("xyz.nucleoid:fantasy:0.4.11+1.20-rc1")!!)
 
     include(implementation(annotationProcessor("com.github.LlamaLad7:MixinExtras:0.2.0-beta.8")!!)!!)
 }

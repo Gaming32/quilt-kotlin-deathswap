@@ -15,7 +15,7 @@ public class MixinServerPlayer {
         method = "changeDimension",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/network/protocol/game/ClientboundRespawnPacket;<init>(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/resources/ResourceKey;JLnet/minecraft/world/level/GameType;Lnet/minecraft/world/level/GameType;ZZBLjava/util/Optional;)V"
+            target = "Lnet/minecraft/network/protocol/game/ClientboundRespawnPacket;<init>(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/resources/ResourceKey;JLnet/minecraft/world/level/GameType;Lnet/minecraft/world/level/GameType;ZZBLjava/util/Optional;I)V"
         ),
         index = 1
     )

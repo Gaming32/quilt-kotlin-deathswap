@@ -1,7 +1,7 @@
 package io.github.gaming32.qkdeathswap.map
 
 import it.unimi.dsi.fastutil.ints.Int2ByteOpenHashMap
-import net.minecraft.world.level.material.MaterialColor
+import net.minecraft.world.level.material.MapColor
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData
 import java.awt.Color
 import java.awt.Image
@@ -32,11 +32,11 @@ fun BufferedImage.toMapPixels(): ByteArray {
 
 private val exactColors = Int2ByteOpenHashMap(62 * 4).apply {
     for (i in 4 until 62 * 4) {
-        put(MaterialColor.getColorFromPackedId(i), i.toByte())
+        put(MapColor.getColorFromPackedId(i), i.toByte())
     }
 }
 
-private val mapColors = Array(62 * 4) { Color(MaterialColor.getColorFromPackedId(it).bgr(), true) }
+private val mapColors = Array(62 * 4) { Color(MapColor.getColorFromPackedId(it).bgr(), true) }
 
 private fun Int.bgr() = (this and 0x0000ff shl 16) or (this and 0x00ff00) or (this and 0xff0000 shr 16)
 

@@ -21,7 +21,7 @@ public abstract class ChangeDimensionMixin {
     @ModifyVariable(method = "changeDimension", at = @At("HEAD"), argsOnly = true)
     private ServerLevel useDeathswapLevel(ServerLevel destination) {
         final Entity eThis = (Entity)(Object)this;
-        final ServerLevel current = (ServerLevel)eThis.getLevel();
+        final ServerLevel current = (ServerLevel)eThis.level();
         if (!DeathSwapStateManager.INSTANCE.isFantasyWorld(current)) {
             return destination;
         }

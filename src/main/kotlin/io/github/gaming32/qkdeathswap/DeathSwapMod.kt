@@ -111,9 +111,9 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val preset = getPreset().value()
                                     if (Presets.load(preset)) {
-                                        source.sendSuccess(Component.literal("Successfully loaded preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true)
+                                        source.sendSuccess({ Component.literal("Successfully loaded preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)) }, true)
                                     } else {
-                                        source.sendSuccess(Component.literal("Failed to load preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), false)
+                                        source.sendSuccess({ Component.literal("Failed to load preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)) }, false)
                                     }
                                 }
                             }
@@ -129,12 +129,12 @@ object DeathSwapMod : ModInitializer {
                                 execute {
                                     val preset = getPreset().value()
                                     if (Presets.delete(preset)) {
-                                        source.sendSuccess(Component.literal("Successfully deleted preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true)
+                                        source.sendSuccess({ Component.literal("Successfully deleted preset ").append(Component.literal(preset).withStyle(ChatFormatting.GREEN)) }, true)
                                     } else {
                                         if (preset in Presets.builtin) {
-                                            source.sendSuccess(Component.literal("Cannot delete builtin preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), true)
+                                            source.sendSuccess({ Component.literal("Cannot delete builtin preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)) }, true)
                                         } else {
-                                            source.sendSuccess(Component.literal("Failed to delete preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(". does it exist?")), false)
+                                            source.sendSuccess({ Component.literal("Failed to delete preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(". does it exist?")) }, false)
                                         }
                                     }
                                 }
@@ -147,14 +147,14 @@ object DeathSwapMod : ModInitializer {
                                     try {
                                         Presets.save(preset)
                                         source.sendSuccess(
-                                            Component.literal("Successfully saved preset ")
-                                                .append(Component.literal(preset).withStyle(ChatFormatting.GREEN)), true
+                                            { Component.literal("Successfully saved preset ")
+                                                .append(Component.literal(preset).withStyle(ChatFormatting.GREEN)) }, true
                                         )
                                     } catch (e: IOException) {
                                         source.sendSuccess(
-                                            Component.literal("Failed to save preset ")
+                                            { Component.literal("Failed to save preset ")
                                                 .append(Component.literal(preset).withStyle(ChatFormatting.RED))
-                                                .append(Component.literal(". ").append(Component.literal(e.message ?: "").withStyle(ChatFormatting.RED))), false
+                                                .append(Component.literal(". ").append(Component.literal(e.message ?: "").withStyle(ChatFormatting.RED))) }, false
                                         )
                                     }
                                 }
@@ -176,19 +176,19 @@ object DeathSwapMod : ModInitializer {
                                             if (kit != null) {
                                                 viewKit(source.playerOrException, kit)
                                             } else {
-                                                source.sendSuccess(Component.literal("No kit found for preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(", or preset doesn't exist.")), false)
+                                                source.sendSuccess({ Component.literal("No kit found for preset ").append(Component.literal(preset).withStyle(ChatFormatting.RED)).append(Component.literal(", or preset doesn't exist.")) }, false)
                                             }
                                         } else {
                                             val values = Presets.preview(preset)
                                             if (values != null) {
                                                 source.sendSuccess(
-                                                    Component.literal("Previewing preset ")
+                                                    { Component.literal("Previewing preset ")
                                                         .append(Component.literal(preset).withStyle(ChatFormatting.GREEN))
-                                                        .append(Component.literal(":")), true
+                                                        .append(Component.literal(":")) }, true
                                                 )
-                                                source.sendSuccess(values, false)
+                                                source.sendSuccess({ values }, false)
                                             } else {
-                                                source.sendSuccess(Component.literal("No preset found for ").append(Component.literal(preset).withStyle(ChatFormatting.RED)), false)
+                                                source.sendSuccess({ Component.literal("No preset found for ").append(Component.literal(preset).withStyle(ChatFormatting.RED)) }, false)
                                             }
                                         }
                                     }
@@ -203,7 +203,7 @@ object DeathSwapMod : ModInitializer {
                                 NbtIo.writeCompressed(CompoundTag().apply {
                                     put("Inventory", ListTag())
                                 }, defaultKitStoreLocation)
-                                source.sendSuccess(Component.literal("Cleared the default kit"), true)
+                                source.sendSuccess({ Component.literal("Cleared the default kit") }, true)
                             }
                         }
                         required(literal("set_from_player")) {
@@ -213,13 +213,13 @@ object DeathSwapMod : ModInitializer {
                                     DeathSwapConfig.defaultKit.copyFrom(actualPlayer.inventory)
                                     DeathSwapConfig.writeDefaultKit()
                                     source.sendSuccess(
-                                        if (actualPlayer === source) {
+                                        { if (actualPlayer === source) {
                                             Component.literal("Set the default kit to your current inventory")
                                         } else {
                                             Component.literal("Set the default kit to ")
                                                 .append(actualPlayer.displayName)
                                                 .append("'s current inventory")
-                                        }, true
+                                        } }, true
                                     )
                                 }
                             }
@@ -238,7 +238,7 @@ object DeathSwapMod : ModInitializer {
                     required(literal("reloadtextures")) {
                         execute {
                             ResourcePackManager.reloadTextures()
-                            source.sendSuccess(Component.literal("Reloaded textures"), true)
+                            source.sendSuccess({ Component.literal("Reloaded textures") }, true)
                         }
                     }
                     if (DeathSwapConfig.enableDebug.value) {
@@ -250,20 +250,20 @@ object DeathSwapMod : ModInitializer {
                             }
                             required(literal("swap_at")) {
                                 execute {
-                                    source.sendSuccess(Component.literal(
+                                    source.sendSuccess({ Component.literal(
                                         "Will swap at: ${ticksToMinutesSeconds(DeathSwapStateManager.timeToSwap)}"
-                                    ), false)
+                                    ) }, false)
                                 }
                             }
                             required(literal("texture_map")) {
                                 required(identifier("texture")) { getTexture ->
                                     execute {
                                         val player = source.playerOrException
-                                        val stack = MapItem.create(player.level, 0, 0, 0, false, false)
-                                        MapItem.lockMap(player.level, stack)
+                                        val stack = MapItem.create(player.serverLevel(), 0, 0, 0, false, false)
+                                        MapItem.lockMap(player.serverLevel(), stack)
                                         player.inventory.add(stack)
                                         val image = ResourcePackManager.getTexture(getTexture().value())
-                                        MapItem.getSavedData(stack, player.level)!!
+                                        MapItem.getSavedData(stack, player.serverLevel())!!
                                             .drawImage(image, scale = 128 / maxOf(image.width, image.height))
                                         player.inventoryMenu.broadcastChanges()
                                     }

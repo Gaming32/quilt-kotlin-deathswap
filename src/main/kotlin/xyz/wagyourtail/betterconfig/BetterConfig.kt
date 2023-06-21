@@ -79,19 +79,19 @@ abstract class BetterConfig<T : BetterConfig<T>>(
                                 )
                                 if (!configItem.brigadierFilter(source, newValue)) {
                                     source.sendSuccess(
-                                        Component.empty()
+                                        { Component.empty()
                                             .append(Component.literal(newValue.toString()).withStyle(ChatFormatting.RED))
                                             .append(" is not a valid value for")
-                                            .append(configItem.key),
+                                            .append(configItem.key) },
                                         false
                                     )
                                 } else {
                                     configItem.value = newValue
                                     save(configItem)
-                                    source.sendSuccess(configItem.toText(), true)
+                                    source.sendSuccess({ configItem.toText() }, true)
                                 }
                             } else {
-                                source.sendSuccess(configItem.toText(), false)
+                                source.sendSuccess({ configItem.toText() }, false)
                             }
                         }
                     }
@@ -99,7 +99,7 @@ abstract class BetterConfig<T : BetterConfig<T>>(
             }
         }
         parent.execute {
-            source.sendSuccess(toText(), false)
+            source.sendSuccess({ toText() }, false)
         }
     }
 

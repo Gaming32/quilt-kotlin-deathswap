@@ -30,7 +30,7 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
     private val statusEffects = if (DeathSwapConfig.swapPotionEffects.value) nextPlayer.activeEffectsMap else null
 
     private val angryMobs = if (DeathSwapConfig.swapMobAggression.value) {
-        nextPlayer.getLevel().allEntities.filter { it is NeutralMob && it.persistentAngerTarget == nextPlayer.uuid }
+        nextPlayer.serverLevel().allEntities.filter { it is NeutralMob && it.persistentAngerTarget == nextPlayer.uuid }
     } else {
         null
     }

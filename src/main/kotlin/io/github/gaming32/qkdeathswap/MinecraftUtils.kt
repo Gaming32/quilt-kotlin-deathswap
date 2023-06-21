@@ -24,14 +24,14 @@ fun MinecraftServer.broadcast(message: Component) = playerList.broadcastSystemMe
 val Level.spawnLocation get() = Location(this, sharedSpawnPos, yaw = sharedSpawnAngle)
 
 fun ServerPlayer.teleport(location: Location) {
-    val world = (location.getWorld(server) ?: level) as ServerLevel
+    val level = location.getWorld(server) ?: serverLevel()
 
     if (isSleeping) {
         stopSleepInBed(true, true)
     }
     stopRiding()
     teleportTo(
-        world,
+        level,
         location.x,
         location.y,
         location.z,
@@ -40,7 +40,7 @@ fun ServerPlayer.teleport(location: Location) {
     )
 }
 
-val Entity.location get() = Location(level, x, y, z, yRot, xRot, pose)
+val Entity.location get() = Location(level(), x, y, z, yRot, xRot, pose)
 
 var ServerPlayer.spawnLocation: Location?
     get() = respawnPosition?.let { spawnPos ->

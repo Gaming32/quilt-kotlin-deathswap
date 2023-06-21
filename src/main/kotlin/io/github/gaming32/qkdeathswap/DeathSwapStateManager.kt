@@ -129,10 +129,10 @@ object DeathSwapStateManager {
     }
 
     fun removePlayer(player: ServerPlayer) {
-        player.level.addFreshEntity(
+        player.serverLevel().addFreshEntity(
             LightningBolt(
                 EntityType.LIGHTNING_BOLT,
-                player.level
+                player.serverLevel()
             ).apply {
                 setPos(player.position())
                 setVisualOnly(true)
@@ -145,7 +145,7 @@ object DeathSwapStateManager {
                 SoundEvents.LIGHTNING_BOLT_THUNDER,
                 SoundSource.WEATHER,
                 10000.0f,
-                0.8f + player.level.random.nextFloat() * 0.2f
+                0.8f + player.serverLevel().random.nextFloat() * 0.2f
             )
         }
         resetPlayer(player, gamemode = GameType.SPECTATOR)
