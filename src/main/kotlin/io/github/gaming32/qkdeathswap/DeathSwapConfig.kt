@@ -156,6 +156,12 @@ open class DeathSwapConfig(
         "Options for modifiers on the swap"
     )
 
+    val swapVelocity = swapOptionsGroup.setting(
+        "velocity",
+        true,
+        BoolArgumentType.bool()
+    )
+
     val swapMount = swapOptionsGroup.setting(
         "mount",
         true,

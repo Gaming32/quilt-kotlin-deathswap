@@ -38,6 +38,7 @@ fun ServerPlayer.teleport(location: Location) {
         location.yaw ?: yRot,
         location.pitch ?: xRot
     )
+    connection.resetPosition()
 }
 
 val Entity.location get() = Location(level(), x, y, z, yRot, xRot, pose)

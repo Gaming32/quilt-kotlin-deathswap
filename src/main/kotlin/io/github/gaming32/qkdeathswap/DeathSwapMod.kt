@@ -329,6 +329,7 @@ object DeathSwapMod : ModInitializer {
                                 spawnPos.z.toDouble(),
                                 0f, 0f
                             )
+                            player.connection.resetPosition()
                         }
                         // else is handled by the setspawn code on itemcount's branch
                     }

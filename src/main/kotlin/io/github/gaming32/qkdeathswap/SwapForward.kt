@@ -4,6 +4,7 @@ import io.github.gaming32.qkdeathswap.mixin.EntityAccessor
 import io.github.gaming32.qkdeathswap.mixin.WardenSpawnTrackerAccessor
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
+import net.minecraft.network.protocol.game.ClientboundExplodePacket
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.NeutralMob
@@ -14,6 +15,8 @@ import net.minecraft.world.phys.Vec3
 
 class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: ServerPlayer) {
     private val pos = nextPlayer.location
+
+    private val velocity = nextPlayer.deltaMovement
 
     private val vehicle = nextPlayer.vehicle
 
@@ -90,6 +93,13 @@ class SwapForward(private val thisPlayer: ServerPlayer, private val nextPlayer: 
 
         thisPlayer.teleport(targetPos)
         thisPlayer.spawnLocation = spawnPoint
+        if (DeathSwapConfig.swapVelocity.value) {
+            thisPlayer.deltaMovement = velocity
+            thisPlayer.connection.send(ClientboundExplodePacket(
+                0.0, -29_999_999.0, 0.0,
+                0f, listOf(), velocity
+            ))
+        }
         tempEntity?.kill()
 
         if (DeathSwapConfig.swapHealth.value) {

@@ -323,6 +323,7 @@ object DeathSwapStateManager {
                         spawnPos.z + 0.5,
                         0f, 0f
                     )
+                    entity.connection.resetPosition()
 
                     entity.spawnLocation = entity.location
                 }
